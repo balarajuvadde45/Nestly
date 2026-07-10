@@ -1,0 +1,248 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  SELLER
+  ADMIN
+}
+
+enum VendorType {
+  HOME_COOK
+  CLOUD_KITCHEN
+  HOME_BUSINESS
+  BOUTIQUE
+}
+
+enum ProductType {
+  FOOD
+  PICKLE
+  CLOTHES
+  SNACK
+  SWEET
+  GROCERY
+  OTHER
+}
+
+enum OrderStatus {
+  PLACED
+  CONFIRMED
+  PREPARING
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  UPI
+  CARD
+  COD
+  WALLET
+}
+
+model User {
+  id           String    @id @default(uuid())
+  name         String
+  email        String    @unique
+  phone        String    @unique
+  passwordHash String
+  role         Role      @default(CUSTOMER)
+  avatarUrl    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  addresses    Address[]
+  orders       Order[]   @relation("CustomerOrders")
+  vendor       Vendor?
+  favorites    Favorite[]
+}
+
+model Address {
+  id          String  @id @default(uuid())
+  userId      String
+  label       String
+  fullAddress String
+  area        String
+  city        String
+  pincode     String
+  landmark    String?
+  lat         Float?
+  lng         Float?
+  isDefault   Boolean @default(false)
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders Order[]
+}
+
+model ShopCategory {
+  id          String @id
+  name        String
+  description String
+  iconKey     String
+  colorHex    String
+  imageUrl    String
+  vendorCount Int    @default(0)
+  sortOrder   Int    @default(0)
+
+  products Product[]
+}
+
+model Vendor {
+  id               String     @id @default(uuid())
+  ownerId          String?    @unique
+  name             String
+  tagline          String
+  description      String
+  imageUrl         String
+  coverUrl         String
+  type             VendorType
+  rating           Float      @default(4.5)
+  reviewCount      Int        @default(0)
+  deliveryTimeMins Int        @default(40)
+  distanceKm       Float      @default(2.0)
+  area             String
+  city             String     @default("Hyderabad")
+  categoriesJson   String     @default("[]")
+  tagsJson         String     @default("[]")
+  isOpen           Boolean    @default(true)
+  isPureVeg        Boolean    @default(false)
+  freeDelivery     Boolean    @default(false)
+  minOrder         Float?
+  offerText        String?
+  orderCount       Int        @default(0)
+  lat              Float      @default(17.4486)
+  lng              Float      @default(78.3908)
+  isApproved       Boolean    @default(true)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  owner    User?     @relation(fields: [ownerId], references: [id])
+  products Product[]
+  orders   Order[]
+}
+
+model Product {
+  id           String      @id @default(uuid())
+  vendorId     String
+  categoryId   String?
+  name         String
+  description  String
+  price        Float
+  mrp          Float?
+  imageUrl     String
+  type         ProductType @default(FOOD)
+  isVeg        Boolean     @default(true)
+  isAvailable  Boolean     @default(true)
+  rating       Float       @default(4.0)
+  reviewCount  Int         @default(0)
+  tagsJson     String      @default("[]")
+  prepTimeMins Int?
+  sizesJson    String      @default("[]")
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  vendor   Vendor        @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  category ShopCategory? @relation(fields: [categoryId], references: [id])
+  items    OrderItem[]
+  favorites Favorite[]
+}
+
+model Favorite {
+  id        String   @id @default(uuid())
+  userId    String
+  vendorId  String?
+  productId String?
+  createdAt DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, vendorId])
+  @@unique([userId, productId])
+}
+
+model Order {
+  id                String        @id @default(uuid())
+  customerId        String
+  vendorId          String
+  addressId         String
+  status            OrderStatus   @default(PLACED)
+  paymentMethod     PaymentMethod @default(COD)
+  paymentStatus     String        @default("PENDING") // PENDING | PAID | FAILED (Razorpay later)
+  itemTotal         Float
+  deliveryFee       Float
+  platformFee       Float
+  tax               Float
+  discount          Float         @default(0)
+  grandTotal        Float
+  couponCode        String?
+  deliveryPartner   String?
+  riderLat          Float?
+  riderLng          Float?
+  estimatedDelivery DateTime?
+  placedAt          DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  notes             String?
+
+  customer User      @relation("CustomerOrders", fields: [customerId], references: [id])
+  vendor   Vendor    @relation(fields: [vendorId], references: [id])
+  address  Address   @relation(fields: [addressId], references: [id])
+  items    OrderItem[]
+  events   OrderEvent[]
+}
+
+model OrderItem {
+  id                  String  @id @default(uuid())
+  orderId             String
+  productId           String
+  productName         String
+  productImage        String
+  unitPrice           Float
+  quantity            Int
+  selectedSize        String?
+  specialInstructions String?
+  isVeg               Boolean @default(true)
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+}
+
+model OrderEvent {
+  id        String      @id @default(uuid())
+  orderId   String
+  status    OrderStatus
+  message   String
+  lat       Float?
+  lng       Float?
+  createdAt DateTime    @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model Banner {
+  id         String  @id @default(uuid())
+  title      String
+  subtitle   String
+  imageUrl   String
+  categoryId String?
+  vendorId   String?
+  sortOrder  Int     @default(0)
+  isActive   Boolean @default(true)
+}
+
+model Coupon {
+  id            String   @id @default(uuid())
+  code          String   @unique
+  type          String // PERCENT | FLAT
+  value         Float
+  maxDiscount   Float?
+  minOrder      Float    @default(0)
+  isActive      Boolean  @default(true)
+  description   String?
+}

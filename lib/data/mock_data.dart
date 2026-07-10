@@ -1,0 +1,913 @@
+import 'package:flutter/material.dart';
+import '../core/theme/app_colors.dart';
+import '../models/banner_item.dart';
+import '../models/category.dart';
+import '../models/order.dart';
+import '../models/product.dart';
+import '../models/user.dart';
+import '../models/vendor.dart';
+
+/// Rich demo catalog — home cooks, cloud kitchens, pickles, clothes, etc.
+class MockData {
+  MockData._();
+
+  // ── Categories ──────────────────────────────────────────────
+  static final categories = <ShopCategory>[
+    ShopCategory(
+      id: 'cat_food',
+      name: 'Home Food',
+      description: 'Fresh homemade meals from local cooks',
+      icon: Icons.restaurant_menu_rounded,
+      color: AppColors.categoryColors[0],
+      imageUrl: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400',
+      vendorCount: 48,
+    ),
+    ShopCategory(
+      id: 'cat_cloud',
+      name: 'Cloud Kitchen',
+      description: 'Pro kitchens delivering to your door',
+      icon: Icons.storefront_rounded,
+      color: AppColors.categoryColors[1],
+      imageUrl: 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=400',
+      vendorCount: 22,
+    ),
+    ShopCategory(
+      id: 'cat_pickle',
+      name: 'Pickles & Spices',
+      description: 'Homemade pickles, powders & masalas',
+      icon: Icons.spa_rounded,
+      color: AppColors.categoryColors[2],
+      imageUrl: 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=400',
+      vendorCount: 31,
+    ),
+    ShopCategory(
+      id: 'cat_sweets',
+      name: 'Sweets & Snacks',
+      description: 'Traditional sweets & crispy snacks',
+      icon: Icons.cake_rounded,
+      color: AppColors.categoryColors[3],
+      imageUrl: 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=400',
+      vendorCount: 27,
+    ),
+    ShopCategory(
+      id: 'cat_clothes',
+      name: 'Home Clothes',
+      description: 'Handcrafted & home-stitched fashion',
+      icon: Icons.checkroom_rounded,
+      color: AppColors.categoryColors[4],
+      imageUrl: 'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=400',
+      vendorCount: 19,
+    ),
+    ShopCategory(
+      id: 'cat_bakery',
+      name: 'Home Bakery',
+      description: 'Cakes, cookies & fresh breads',
+      icon: Icons.bakery_dining_rounded,
+      color: AppColors.categoryColors[5],
+      imageUrl: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400',
+      vendorCount: 15,
+    ),
+    ShopCategory(
+      id: 'cat_healthy',
+      name: 'Healthy & Diet',
+      description: 'Low-cal, keto & nutritious meals',
+      icon: Icons.favorite_rounded,
+      color: AppColors.categoryColors[6],
+      imageUrl: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400',
+      vendorCount: 12,
+    ),
+    ShopCategory(
+      id: 'cat_tiffin',
+      name: 'Tiffin Service',
+      description: 'Daily lunch & dinner subscriptions',
+      icon: Icons.lunch_dining_rounded,
+      color: AppColors.categoryColors[7],
+      imageUrl: 'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=400',
+      vendorCount: 18,
+    ),
+  ];
+
+  // ── Banners ─────────────────────────────────────────────────
+  static const banners = <BannerItem>[
+    BannerItem(
+      id: 'b1',
+      title: 'Homemade Happiness',
+      subtitle: 'Get 40% OFF on first order',
+      imageUrl: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800',
+      actionRoute: '/search',
+    ),
+    BannerItem(
+      id: 'b2',
+      title: 'Cloud Kitchen Deals',
+      subtitle: 'Free delivery above ₹199',
+      imageUrl: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800',
+      categoryId: 'cat_cloud',
+    ),
+    BannerItem(
+      id: 'b3',
+      title: 'Grandma\'s Pickles',
+      subtitle: 'Authentic recipes, pure ingredients',
+      imageUrl: 'https://images.unsplash.com/photo-1589302168068-964664d93dc0?w=800',
+      categoryId: 'cat_pickle',
+    ),
+    BannerItem(
+      id: 'b4',
+      title: 'Festive Wear',
+      subtitle: 'Handcrafted ethnic clothes',
+      imageUrl: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800',
+      categoryId: 'cat_clothes',
+    ),
+  ];
+
+  // ── Vendors ─────────────────────────────────────────────────
+  static const vendors = <Vendor>[
+    Vendor(
+      id: 'v1',
+      name: 'Amma\'s Kitchen',
+      tagline: 'Taste of home, every day',
+      description:
+          'Traditional Andhra & Telangana home-style meals cooked with love by Amma. Fresh ingredients, no preservatives, pure ghee.',
+      imageUrl: 'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=400',
+      coverUrl: 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=800',
+      type: VendorType.homeCook,
+      rating: 4.7,
+      reviewCount: 1240,
+      deliveryTimeMins: 35,
+      distanceKm: 1.2,
+      area: 'Madhapur',
+      categories: ['cat_food', 'cat_tiffin'],
+      tags: ['Andhra', 'Home-style', 'Pure Veg options'],
+      isPureVeg: false,
+      freeDelivery: true,
+      offerText: '30% OFF up to ₹100',
+      orderCount: 8500,
+    ),
+    Vendor(
+      id: 'v2',
+      name: 'Spice Route Cloud',
+      tagline: 'Restaurant-grade, home-delivered',
+      description:
+          'Multi-cuisine cloud kitchen serving biryanis, kebabs, Chinese & more. Professional chefs, consistent quality.',
+      imageUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400',
+      coverUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800',
+      type: VendorType.cloudKitchen,
+      rating: 4.5,
+      reviewCount: 980,
+      deliveryTimeMins: 40,
+      distanceKm: 2.4,
+      area: 'Hitech City',
+      categories: ['cat_cloud', 'cat_food'],
+      tags: ['Biryani', 'North Indian', 'Chinese'],
+      freeDelivery: false,
+      offerText: 'Buy 1 Get 1 on selected items',
+      orderCount: 12000,
+    ),
+    Vendor(
+      id: 'v3',
+      name: 'Aunty\'s Pickle Co.',
+      tagline: 'From our kitchen to yours',
+      description:
+          'Handmade pickles, podis and spice mixes using recipes passed down three generations. No artificial colors.',
+      imageUrl: 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=400',
+      coverUrl: 'https://images.unsplash.com/photo-1506368249639-73a05d6f6488?w=800',
+      type: VendorType.homeBusiness,
+      rating: 4.9,
+      reviewCount: 2100,
+      deliveryTimeMins: 50,
+      distanceKm: 3.1,
+      area: 'Kukatpally',
+      categories: ['cat_pickle'],
+      tags: ['Pickles', 'Spices', 'Organic'],
+      isPureVeg: true,
+      freeDelivery: true,
+      offerText: 'Free sample with orders above ₹299',
+      orderCount: 15000,
+    ),
+    Vendor(
+      id: 'v4',
+      name: 'Meera\'s Mithai',
+      tagline: 'Festival sweets, everyday joy',
+      description:
+          'Homemade laddoos, barfis, mixture and traditional snacks prepared in small batches for maximum freshness.',
+      imageUrl: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=400',
+      coverUrl: 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=800',
+      type: VendorType.homeBusiness,
+      rating: 4.6,
+      reviewCount: 760,
+      deliveryTimeMins: 45,
+      distanceKm: 1.8,
+      area: 'Jubilee Hills',
+      categories: ['cat_sweets', 'cat_bakery'],
+      tags: ['Sweets', 'Snacks', 'Festival specials'],
+      isPureVeg: true,
+      freeDelivery: false,
+      offerText: '20% OFF on mithai boxes',
+      orderCount: 5400,
+    ),
+    Vendor(
+      id: 'v5',
+      name: 'Stitch & Style',
+      tagline: 'Handcrafted ethnic wear',
+      description:
+          'Home boutique offering custom & ready-made kurtis, sarees, kids wear and festive outfits. Hand-embroidered pieces.',
+      imageUrl: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=400',
+      coverUrl: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800',
+      type: VendorType.boutique,
+      rating: 4.4,
+      reviewCount: 430,
+      deliveryTimeMins: 60,
+      distanceKm: 4.2,
+      area: 'Banjara Hills',
+      categories: ['cat_clothes'],
+      tags: ['Kurtis', 'Ethnic', 'Kids wear'],
+      freeDelivery: true,
+      offerText: 'Flat ₹150 OFF above ₹999',
+      orderCount: 2100,
+    ),
+    Vendor(
+      id: 'v6',
+      name: 'Green Bowl Kitchen',
+      tagline: 'Eat clean, feel great',
+      description:
+          'Cloud kitchen focused on healthy bowls, salads, smoothies and calorie-counted meals for busy professionals.',
+      imageUrl: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400',
+      coverUrl: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=800',
+      type: VendorType.cloudKitchen,
+      rating: 4.8,
+      reviewCount: 560,
+      deliveryTimeMins: 30,
+      distanceKm: 0.9,
+      area: 'Gachibowli',
+      categories: ['cat_healthy', 'cat_cloud'],
+      tags: ['Healthy', 'Keto', 'Salads'],
+      isPureVeg: false,
+      freeDelivery: true,
+      offerText: 'First week subscription 25% OFF',
+      orderCount: 3200,
+    ),
+    Vendor(
+      id: 'v7',
+      name: 'Tiffin Express by Lakshmi',
+      tagline: 'Daily tiffin, no fuss',
+      description:
+          'Home-cooked lunch & dinner tiffins with weekly rotating menu. Ideal for students and working professionals.',
+      imageUrl: 'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=400',
+      coverUrl: 'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=800',
+      type: VendorType.homeCook,
+      rating: 4.3,
+      reviewCount: 890,
+      deliveryTimeMins: 25,
+      distanceKm: 1.5,
+      area: 'Ameerpet',
+      categories: ['cat_tiffin', 'cat_food'],
+      tags: ['Tiffin', 'Daily meals', 'Budget'],
+      isPureVeg: true,
+      freeDelivery: false,
+      minOrder: 80,
+      offerText: 'Weekly plan from ₹799',
+      orderCount: 6800,
+    ),
+    Vendor(
+      id: 'v8',
+      name: 'Oven Tales Bakery',
+      tagline: 'Baked with heart',
+      description:
+          'Artisan home bakery — sourdough, brownies, custom cakes and cookies. Pre-order for celebrations.',
+      imageUrl: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400',
+      coverUrl: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800',
+      type: VendorType.homeBusiness,
+      rating: 4.9,
+      reviewCount: 340,
+      deliveryTimeMins: 55,
+      distanceKm: 2.7,
+      area: 'Kondapur',
+      categories: ['cat_bakery', 'cat_sweets'],
+      tags: ['Cakes', 'Cookies', 'Custom orders'],
+      isPureVeg: true,
+      freeDelivery: false,
+      offerText: 'Free birthday candle with cakes',
+      orderCount: 1800,
+    ),
+    Vendor(
+      id: 'v9',
+      name: 'Biryani House Pro',
+      tagline: 'Hyderabadi dum, done right',
+      description:
+          'Cloud kitchen specialising in authentic Hyderabadi dum biryani, haleem and nihari. Slow-cooked perfection.',
+      imageUrl: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=400',
+      coverUrl: 'https://images.unsplash.com/photo-1589302168068-964664d93dc0?w=800',
+      type: VendorType.cloudKitchen,
+      rating: 4.6,
+      reviewCount: 3200,
+      deliveryTimeMins: 42,
+      distanceKm: 2.0,
+      area: 'Madhapur',
+      categories: ['cat_cloud', 'cat_food'],
+      tags: ['Biryani', 'Hyderabadi', 'Non-veg'],
+      freeDelivery: true,
+      offerText: 'Extra raita free on orders above ₹349',
+      orderCount: 22000,
+    ),
+    Vendor(
+      id: 'v10',
+      name: 'Craft & Cotton',
+      tagline: 'Sustainable home fashion',
+      description:
+          'Organic cotton tees, handloom sarees and block-print dresses made by women entrepreneurs at home.',
+      imageUrl: 'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=400',
+      coverUrl: 'https://images.unsplash.com/photo-1558769132-cb1aea1f1cba?w=800',
+      type: VendorType.boutique,
+      rating: 4.5,
+      reviewCount: 210,
+      deliveryTimeMins: 70,
+      distanceKm: 5.0,
+      area: 'Secunderabad',
+      categories: ['cat_clothes'],
+      tags: ['Organic', 'Handloom', 'Sustainable'],
+      freeDelivery: true,
+      offerText: 'Buy 2 Get 1 free on tees',
+      orderCount: 950,
+    ),
+  ];
+
+  // ── Products ────────────────────────────────────────────────
+  static final products = <Product>[
+    // Amma's Kitchen
+    Product(
+      id: 'p1',
+      vendorId: 'v1',
+      name: 'Andhra Thali',
+      description: 'Rice, sambar, rasam, 2 curries, fry, pickle, curd & papad. Serves 1.',
+      price: 149,
+      mrp: 179,
+      imageUrl: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400',
+      type: ProductType.food,
+      isVeg: true,
+      rating: 4.8,
+      reviewCount: 420,
+      tags: ['Bestseller', 'Thali'],
+      categoryId: 'cat_food',
+      prepTimeMins: 25,
+    ),
+    Product(
+      id: 'p2',
+      vendorId: 'v1',
+      name: 'Gongura Chicken',
+      description: 'Tangy gongura leaves with tender chicken, Andhra style.',
+      price: 199,
+      mrp: 229,
+      imageUrl: 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=400',
+      type: ProductType.food,
+      isVeg: false,
+      rating: 4.7,
+      reviewCount: 310,
+      tags: ['Spicy', 'Signature'],
+      categoryId: 'cat_food',
+      prepTimeMins: 30,
+    ),
+    Product(
+      id: 'p3',
+      vendorId: 'v1',
+      name: 'Pesarattu & Upma',
+      description: 'Crispy green gram dosa with upma and ginger chutney.',
+      price: 89,
+      imageUrl: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=400',
+      type: ProductType.food,
+      isVeg: true,
+      rating: 4.5,
+      reviewCount: 180,
+      tags: ['Breakfast'],
+      categoryId: 'cat_food',
+      prepTimeMins: 20,
+    ),
+    Product(
+      id: 'p4',
+      vendorId: 'v1',
+      name: 'Gutti Vankaya Curry',
+      description: 'Stuffed brinjal in rich peanut-sesame gravy.',
+      price: 129,
+      imageUrl: 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400',
+      type: ProductType.food,
+      isVeg: true,
+      rating: 4.6,
+      reviewCount: 95,
+      tags: ['Curry'],
+      categoryId: 'cat_food',
+      prepTimeMins: 25,
+    ),
+    // Spice Route Cloud
+    Product(
+      id: 'p5',
+      vendorId: 'v2',
+      name: 'Chicken Dum Biryani',
+      description: 'Aromatic basmati rice with marinated chicken, dum cooked.',
+      price: 279,
+      mrp: 329,
+      imageUrl: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=400',
+      type: ProductType.food,
+      isVeg: false,
+      rating: 4.6,
+      reviewCount: 890,
+      tags: ['Bestseller', 'Biryani'],
+      categoryId: 'cat_cloud',
+      prepTimeMins: 35,
+    ),
+    Product(
+      id: 'p6',
+      vendorId: 'v2',
+      name: 'Paneer Butter Masala',
+      description: 'Cottage cheese in creamy tomato-butter gravy. With 2 naan.',
+      price: 249,
+      mrp: 279,
+      imageUrl: 'https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=400',
+      type: ProductType.food,
+      isVeg: true,
+      rating: 4.4,
+      reviewCount: 340,
+      tags: ['North Indian'],
+      categoryId: 'cat_cloud',
+      prepTimeMins: 25,
+    ),
+    Product(
+      id: 'p7',
+      vendorId: 'v2',
+      name: 'Veg Manchurian Combo',
+      description: 'Crispy veg balls in Indo-Chinese sauce with fried rice.',
+      price: 199,
+      imageUrl: 'https://images.unsplash.com/photo-1525755662778-989d0524087e?w=400',
+      type: ProductType.food,
+      isVeg: true,
+      rating: 4.3,
+      reviewCount: 210,
+      tags: ['Chinese', 'Combo'],
+      categoryId: 'cat_cloud',
+      prepTimeMins: 20,
+    ),
+    Product(
+      id: 'p8',
+      vendorId: 'v2',
+      name: 'Mutton Rogan Josh',
+      description: 'Kashmiri-style slow-cooked mutton curry. Serves 2.',
+      price: 349,
+      mrp: 399,
+      imageUrl: 'https://images.unsplash.com/photo-1545247181-516773cae754?w=400',
+      type: ProductType.food,
+      isVeg: false,
+      rating: 4.7,
+      reviewCount: 156,
+      tags: ['Premium'],
+      categoryId: 'cat_cloud',
+      prepTimeMins: 40,
+    ),
+    // Aunty's Pickle Co.
+    Product(
+      id: 'p9',
+      vendorId: 'v3',
+      name: 'Mango Avakaya (500g)',
+      description: 'Classic Andhra mango pickle with mustard oil & spices.',
+      price: 249,
+      mrp: 299,
+      imageUrl: 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=400',
+      type: ProductType.pickle,
+      isVeg: true,
+      rating: 4.9,
+      reviewCount: 1200,
+      tags: ['Bestseller', 'Andhra'],
+      categoryId: 'cat_pickle',
+    ),
+    Product(
+      id: 'p10',
+      vendorId: 'v3',
+      name: 'Gongura Pickle (250g)',
+      description: 'Tangy gongura leaves pickle — perfect with rice & ghee.',
+      price: 149,
+      imageUrl: 'https://images.unsplash.com/photo-1506368249639-73a05d6f6488?w=400',
+      type: ProductType.pickle,
+      isVeg: true,
+      rating: 4.8,
+      reviewCount: 680,
+      tags: ['Popular'],
+      categoryId: 'cat_pickle',
+    ),
+    Product(
+      id: 'p11',
+      vendorId: 'v3',
+      name: 'Idli Karam Podi (200g)',
+      description: 'Spicy gunpowder for idli, dosa & rice. Made fresh weekly.',
+      price: 99,
+      mrp: 120,
+      imageUrl: 'https://images.unsplash.com/photo-1596797038530-2c107229654b?w=400',
+      type: ProductType.pickle,
+      isVeg: true,
+      rating: 4.7,
+      reviewCount: 450,
+      tags: ['Podi'],
+      categoryId: 'cat_pickle',
+    ),
+    Product(
+      id: 'p12',
+      vendorId: 'v3',
+      name: 'Lemon Pickle (400g)',
+      description: 'Sun-cured lemon pickle with mild spices. Long shelf life.',
+      price: 179,
+      imageUrl: 'https://images.unsplash.com/photo-1574484284002-952d92456975?w=400',
+      type: ProductType.pickle,
+      isVeg: true,
+      rating: 4.6,
+      reviewCount: 290,
+      tags: ['Classic'],
+      categoryId: 'cat_pickle',
+    ),
+    // Meera's Mithai
+    Product(
+      id: 'p13',
+      vendorId: 'v4',
+      name: 'Besan Laddoo (6 pcs)',
+      description: 'Roasted gram flour laddoos with pure ghee & cardamom.',
+      price: 180,
+      mrp: 220,
+      imageUrl: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=400',
+      type: ProductType.sweet,
+      isVeg: true,
+      rating: 4.8,
+      reviewCount: 320,
+      tags: ['Bestseller'],
+      categoryId: 'cat_sweets',
+    ),
+    Product(
+      id: 'p14',
+      vendorId: 'v4',
+      name: 'Mixture Combo Pack (500g)',
+      description: 'Crispy South Indian mixture — perfect tea-time snack.',
+      price: 149,
+      imageUrl: 'https://images.unsplash.com/photo-1599490659213-e2b9527bd087?w=400',
+      type: ProductType.snack,
+      isVeg: true,
+      rating: 4.5,
+      reviewCount: 210,
+      tags: ['Snacks'],
+      categoryId: 'cat_sweets',
+    ),
+    Product(
+      id: 'p15',
+      vendorId: 'v4',
+      name: 'Kaju Katli Box (250g)',
+      description: 'Premium cashew fudge, silver leaf finish. Gift-ready.',
+      price: 399,
+      mrp: 450,
+      imageUrl: 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=400',
+      type: ProductType.sweet,
+      isVeg: true,
+      rating: 4.9,
+      reviewCount: 180,
+      tags: ['Premium', 'Gift'],
+      categoryId: 'cat_sweets',
+    ),
+    // Stitch & Style
+    Product(
+      id: 'p16',
+      vendorId: 'v5',
+      name: 'Cotton Printed Kurti',
+      description: 'Breathable cotton kurti with hand-block print. Casual & festive.',
+      price: 799,
+      mrp: 1299,
+      imageUrl: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=400',
+      type: ProductType.clothes,
+      isVeg: true,
+      rating: 4.5,
+      reviewCount: 145,
+      tags: ['Bestseller', 'Cotton'],
+      categoryId: 'cat_clothes',
+      sizes: ['S', 'M', 'L', 'XL', 'XXL'],
+    ),
+    Product(
+      id: 'p17',
+      vendorId: 'v5',
+      name: 'Kids Ethnic Set',
+      description: 'Boy/Girl festive set with soft fabric. Ages 2–10 available.',
+      price: 999,
+      mrp: 1499,
+      imageUrl: 'https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?w=400',
+      type: ProductType.clothes,
+      isVeg: true,
+      rating: 4.6,
+      reviewCount: 88,
+      tags: ['Kids', 'Festival'],
+      categoryId: 'cat_clothes',
+      sizes: ['2-3Y', '4-5Y', '6-7Y', '8-10Y'],
+    ),
+    Product(
+      id: 'p18',
+      vendorId: 'v5',
+      name: 'Embroidered Dupatta',
+      description: 'Lightweight chiffon dupatta with mirror work embroidery.',
+      price: 449,
+      mrp: 699,
+      imageUrl: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=400',
+      type: ProductType.clothes,
+      isVeg: true,
+      rating: 4.3,
+      reviewCount: 62,
+      tags: ['Accessories'],
+      categoryId: 'cat_clothes',
+      sizes: ['Free Size'],
+    ),
+    // Green Bowl
+    Product(
+      id: 'p19',
+      vendorId: 'v6',
+      name: 'Buddha Bowl',
+      description: 'Quinoa, roasted veggies, hummus, avocado & tahini dressing.',
+      price: 249,
+      imageUrl: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400',
+      type: ProductType.food,
+      isVeg: true,
+      rating: 4.8,
+      reviewCount: 240,
+      tags: ['Healthy', 'Bestseller'],
+      categoryId: 'cat_healthy',
+      prepTimeMins: 15,
+    ),
+    Product(
+      id: 'p20',
+      vendorId: 'v6',
+      name: 'Grilled Chicken Salad',
+      description: 'Protein-packed salad with grilled chicken, greens & vinaigrette.',
+      price: 279,
+      mrp: 299,
+      imageUrl: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400',
+      type: ProductType.food,
+      isVeg: false,
+      rating: 4.7,
+      reviewCount: 190,
+      tags: ['High Protein'],
+      categoryId: 'cat_healthy',
+      prepTimeMins: 18,
+    ),
+    Product(
+      id: 'p21',
+      vendorId: 'v6',
+      name: 'Detox Green Smoothie',
+      description: 'Spinach, apple, cucumber, ginger & chia. 350ml.',
+      price: 149,
+      imageUrl: 'https://images.unsplash.com/photo-1610970881699-44a5587cabec?w=400',
+      type: ProductType.food,
+      isVeg: true,
+      rating: 4.4,
+      reviewCount: 110,
+      tags: ['Drinks'],
+      categoryId: 'cat_healthy',
+      prepTimeMins: 5,
+    ),
+    // Tiffin Express
+    Product(
+      id: 'p22',
+      vendorId: 'v7',
+      name: 'Veg Lunch Tiffin',
+      description: 'Rice/roti, dal, 2 sabzi, curd, pickle. Daily rotating menu.',
+      price: 99,
+      imageUrl: 'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=400',
+      type: ProductType.food,
+      isVeg: true,
+      rating: 4.4,
+      reviewCount: 560,
+      tags: ['Tiffin', 'Value'],
+      categoryId: 'cat_tiffin',
+      prepTimeMins: 20,
+    ),
+    Product(
+      id: 'p23',
+      vendorId: 'v7',
+      name: 'Weekly Veg Plan (5 days)',
+      description: 'Lunch tiffin Mon–Fri. Skip/pause anytime. Auto-renew optional.',
+      price: 449,
+      mrp: 495,
+      imageUrl: 'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=400',
+      type: ProductType.food,
+      isVeg: true,
+      rating: 4.5,
+      reviewCount: 320,
+      tags: ['Subscription', 'Save more'],
+      categoryId: 'cat_tiffin',
+    ),
+    // Oven Tales
+    Product(
+      id: 'p24',
+      vendorId: 'v8',
+      name: 'Chocolate Truffle Cake (500g)',
+      description: 'Rich dark chocolate cake with ganache. Custom message free.',
+      price: 549,
+      mrp: 649,
+      imageUrl: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=400',
+      type: ProductType.sweet,
+      isVeg: true,
+      rating: 4.9,
+      reviewCount: 210,
+      tags: ['Bestseller', 'Cakes'],
+      categoryId: 'cat_bakery',
+    ),
+    Product(
+      id: 'p25',
+      vendorId: 'v8',
+      name: 'Butter Cookies (250g)',
+      description: 'Classic shortbread cookies. Perfect with chai.',
+      price: 199,
+      imageUrl: 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?w=400',
+      type: ProductType.snack,
+      isVeg: true,
+      rating: 4.6,
+      reviewCount: 95,
+      tags: ['Cookies'],
+      categoryId: 'cat_bakery',
+    ),
+    // Biryani House
+    Product(
+      id: 'p26',
+      vendorId: 'v9',
+      name: 'Hyderabadi Chicken Biryani',
+      description: 'Authentic kacchi dum biryani with raita & mirchi ka salan.',
+      price: 299,
+      mrp: 349,
+      imageUrl: 'https://images.unsplash.com/photo-1589302168068-964664d93dc0?w=400',
+      type: ProductType.food,
+      isVeg: false,
+      rating: 4.7,
+      reviewCount: 2100,
+      tags: ['Bestseller', 'Signature'],
+      categoryId: 'cat_cloud',
+      prepTimeMins: 40,
+    ),
+    Product(
+      id: 'p27',
+      vendorId: 'v9',
+      name: 'Veg Dum Biryani',
+      description: 'Fragrant basmati with mixed veggies, saffron & fried onions.',
+      price: 229,
+      mrp: 259,
+      imageUrl: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=400',
+      type: ProductType.food,
+      isVeg: true,
+      rating: 4.4,
+      reviewCount: 780,
+      tags: ['Veg'],
+      categoryId: 'cat_cloud',
+      prepTimeMins: 35,
+    ),
+    Product(
+      id: 'p28',
+      vendorId: 'v9',
+      name: 'Mutton Haleem (500g)',
+      description: 'Slow-cooked haleem — seasonal special. Limited stock daily.',
+      price: 349,
+      imageUrl: 'https://images.unsplash.com/photo-1545247181-516773cae754?w=400',
+      type: ProductType.food,
+      isVeg: false,
+      rating: 4.8,
+      reviewCount: 430,
+      tags: ['Seasonal', 'Premium'],
+      categoryId: 'cat_cloud',
+      prepTimeMins: 15,
+    ),
+    // Craft & Cotton
+    Product(
+      id: 'p29',
+      vendorId: 'v10',
+      name: 'Organic Cotton Tee',
+      description: 'Unisex organic cotton tee. Soft, breathable, eco-dyed.',
+      price: 599,
+      mrp: 899,
+      imageUrl: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400',
+      type: ProductType.clothes,
+      isVeg: true,
+      rating: 4.5,
+      reviewCount: 76,
+      tags: ['Organic', 'Sustainable'],
+      categoryId: 'cat_clothes',
+      sizes: ['S', 'M', 'L', 'XL'],
+    ),
+    Product(
+      id: 'p30',
+      vendorId: 'v10',
+      name: 'Block Print Saree',
+      description: 'Handloom cotton saree with traditional block prints.',
+      price: 1899,
+      mrp: 2499,
+      imageUrl: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=400',
+      type: ProductType.clothes,
+      isVeg: true,
+      rating: 4.7,
+      reviewCount: 42,
+      tags: ['Handloom', 'Premium'],
+      categoryId: 'cat_clothes',
+      sizes: ['Free Size'],
+    ),
+  ];
+
+  // ── Demo user ───────────────────────────────────────────────
+  static final demoUser = AppUser(
+    id: 'u1',
+    name: 'Priya Sharma',
+    email: 'priya.sharma@email.com',
+    phone: '+91 98765 43210',
+    favoriteVendorIds: ['v1', 'v3', 'v9'],
+    favoriteProductIds: ['p1', 'p9', 'p26'],
+    addresses: const [
+      Address(
+        id: 'a1',
+        label: 'Home',
+        fullAddress: 'Flat 402, Green Valley Apts, Road No. 12',
+        area: 'Madhapur',
+        city: 'Hyderabad',
+        pincode: '500081',
+        landmark: 'Near Inorbit Mall',
+        isDefault: true,
+        lat: 17.4486,
+        lng: 78.3908,
+      ),
+      Address(
+        id: 'a2',
+        label: 'Office',
+        fullAddress: 'Floor 8, Tech Park Building B',
+        area: 'Hitech City',
+        city: 'Hyderabad',
+        pincode: '500081',
+        landmark: 'Gate 2',
+        lat: 17.4435,
+        lng: 78.3772,
+      ),
+    ],
+  );
+
+  // ── Helpers ─────────────────────────────────────────────────
+  static Vendor? vendorById(String id) {
+    try {
+      return vendors.firstWhere((v) => v.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Product? productById(String id) {
+    try {
+      return products.firstWhere((p) => p.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static ShopCategory? categoryById(String id) {
+    try {
+      return categories.firstWhere((c) => c.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static List<Product> productsForVendor(String vendorId) =>
+      products.where((p) => p.vendorId == vendorId).toList();
+
+  static List<Vendor> vendorsForCategory(String categoryId) =>
+      vendors.where((v) => v.categories.contains(categoryId)).toList();
+
+  static List<Product> productsForCategory(String categoryId) =>
+      products.where((p) => p.categoryId == categoryId).toList();
+
+  static List<Vendor> searchVendors(String query) {
+    final q = query.toLowerCase().trim();
+    if (q.isEmpty) return vendors;
+    return vendors.where((v) {
+      return v.name.toLowerCase().contains(q) ||
+          v.tagline.toLowerCase().contains(q) ||
+          v.tags.any((t) => t.toLowerCase().contains(q)) ||
+          v.area.toLowerCase().contains(q);
+    }).toList();
+  }
+
+  static List<Product> searchProducts(String query) {
+    final q = query.toLowerCase().trim();
+    if (q.isEmpty) return products;
+    return products.where((p) {
+      return p.name.toLowerCase().contains(q) ||
+          p.description.toLowerCase().contains(q) ||
+          p.tags.any((t) => t.toLowerCase().contains(q));
+    }).toList();
+  }
+
+  static List<Vendor> get popularVendors {
+    final sorted = List<Vendor>.from(vendors)
+      ..sort((a, b) => b.orderCount.compareTo(a.orderCount));
+    return sorted.take(6).toList();
+  }
+
+  static List<Vendor> get topRated {
+    final sorted = List<Vendor>.from(vendors)
+      ..sort((a, b) => b.rating.compareTo(a.rating));
+    return sorted.take(6).toList();
+  }
+
+  static List<Product> get bestsellers {
+    final sorted = List<Product>.from(products)
+      ..sort((a, b) => b.reviewCount.compareTo(a.reviewCount));
+    return sorted.take(8).toList();
+  }
+}
