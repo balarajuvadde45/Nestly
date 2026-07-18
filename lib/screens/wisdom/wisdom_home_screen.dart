@@ -21,6 +21,14 @@ class _WisdomHomeScreenState extends State<WisdomHomeScreen> {
   final _search = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<WisdomProvider>().loadFromApi();
+    });
+  }
+
+  @override
   void dispose() {
     _search.dispose();
     super.dispose();

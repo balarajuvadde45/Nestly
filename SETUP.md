@@ -19,15 +19,45 @@ This document lists **exactly what you need to do** on your machine.
 
 ## What YOU must do
 
-### 1. Start the backend (required)
+### 1. Configure PostgreSQL (required)
+
+1. Ensure PostgreSQL is running (e.g. service `postgresql-x64-18`).
+2. Copy env template and put **your real password**:
 
 ```bash
 cd backend
-npm run setup          # first time only (install + DB + seed)
-npm run dev            # start API on http://localhost:4000
+copy .env.example .env
 ```
 
-Check: open http://localhost:4000/health → should return `{ "ok": true, "service": "nestly-api", ... }`.
+Edit `backend/.env`:
+
+```env
+DATABASE_URL=postgresql://postgres:YOUR_REAL_PASSWORD@localhost:5432/postgres?schema=public
+JWT_SECRET=any_long_random_string_you_choose
+```
+
+Optional dedicated database (recommended):
+
+```sql
+CREATE DATABASE nestly;
+```
+
+Then:
+
+```env
+DATABASE_URL=postgresql://postgres:YOUR_REAL_PASSWORD@localhost:5432/nestly?schema=public
+```
+
+### 2. Create tables + seed + start API
+
+```bash
+cd backend
+npm install
+npm run db:setup    # validates .env, creates tables, seeds demo data
+npm run dev         # http://localhost:4000
+```
+
+Check: http://localhost:4000/health → `{ "ok": true, "database": "up", ... }`.
 
 **Demo accounts** (password for all: `password123`):
 

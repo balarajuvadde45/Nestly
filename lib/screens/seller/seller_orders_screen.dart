@@ -30,7 +30,19 @@ class _SellerOrdersScreenState extends State<SellerOrdersScreen> {
     final pad = Responsive.contentPadding(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Seller orders')),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => context.go('/seller'),
+        ),
+        title: const Text('Seller orders'),
+        actions: [
+          TextButton(
+            onPressed: () => context.go('/home'),
+            child: const Text('Shop'),
+          ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: seller.loadOrders,
         child: seller.orders.isEmpty

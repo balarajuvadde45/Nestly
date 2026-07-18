@@ -1,16 +1,16 @@
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
-import '../data/wisdom_mock_data.dart';
 import '../models/wisdom_post.dart';
 import '../services/api_client.dart';
 
+/// Wisdom Circle posts — API-backed when available; local only for session posts.
 class WisdomProvider extends ChangeNotifier {
   WisdomProvider(this._api);
 
   final ApiClient _api;
   final _uuid = const Uuid();
 
-  final List<WisdomPost> _posts = List.from(WisdomMockData.posts);
+  final List<WisdomPost> _posts = [];
   WisdomTopic? _topicFilter;
   WisdomPostType? _typeFilter;
   String _query = '';
@@ -91,10 +91,33 @@ class WisdomProvider extends ChangeNotifier {
         return;
       }
       final res = await _api.get('/api/wisdom/posts');
-      final list = res['posts'] as List?;
-      if (list != null && list.isNotEmpty) {
-        // Keep local answers rich; merge by id if API shape matches later
-        // For now API may return simplified posts — only replace if parseable
+      final list = res['posts'] as List? ?? [];
+      // Map API posts when shape matches; keep user-created local posts
+      final apiPosts = <WisdomPost>[];
+      for (final raw in list) {
+        if (raw is! Map) continue;
+        final m = Map<String, dynamic>.from(raw);
+        apiPosts.add(WisdomPost(
+          id: m['id'] as String? ?? _uuid.v4(),
+          authorName: m['authorName'] as String? ?? 'Member',
+          authorAge: (m['authorAge'] as num?)?.toInt() ?? 0,
+          isElder: m['isElder'] as bool? ?? false,
+          title: m['title'] as String? ?? '',
+          body: m['body'] as String? ?? '',
+          type: _parseType(m['type'] as String?),
+          topic: _parseTopic(m['topic'] as String?),
+          createdAt: DateTime.tryParse(m['createdAt'] as String? ?? '') ??
+              DateTime.now(),
+          helpfulCount: (m['helpfulCount'] as num?)?.toInt() ?? 0,
+          tags: (m['tags'] as List?)?.map((e) => e.toString()).toList() ??
+              const [],
+        ));
+      }
+      // Prefer API list for UAT; session-only posts already posted via API are included
+      if (apiPosts.isNotEmpty) {
+        _posts
+          ..clear()
+          ..addAll(apiPosts);
       }
     } catch (e) {
       _error = e.toString();
@@ -102,6 +125,26 @@ class WisdomProvider extends ChangeNotifier {
       _loading = false;
       notifyListeners();
     }
+  }
+
+  WisdomPostType _parseType(String? t) {
+    switch (t) {
+      case 'remedy':
+        return WisdomPostType.remedy;
+      case 'question':
+        return WisdomPostType.question;
+      case 'story':
+        return WisdomPostType.story;
+      default:
+        return WisdomPostType.tip;
+    }
+  }
+
+  WisdomTopic _parseTopic(String? t) {
+    for (final v in WisdomTopic.values) {
+      if (v.name == t) return v;
+    }
+    return WisdomTopic.other;
   }
 
   void addPost({
@@ -129,7 +172,6 @@ class WisdomProvider extends ChangeNotifier {
     _posts.insert(0, post);
     notifyListeners();
 
-    // Best-effort API sync
     _api.post('/api/wisdom/posts', body: {
       'authorName': authorName,
       'authorAge': authorAge,

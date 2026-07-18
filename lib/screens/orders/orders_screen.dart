@@ -9,8 +9,21 @@ import '../../providers/order_provider.dart';
 import '../../widgets/app_network_image.dart';
 import '../../widgets/empty_state.dart';
 
-class OrdersScreen extends StatelessWidget {
+class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
+
+  @override
+  State<OrdersScreen> createState() => _OrdersScreenState();
+}
+
+class _OrdersScreenState extends State<OrdersScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<OrderProvider>().loadOrders();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,13 +34,23 @@ class OrdersScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('My Orders')),
-      body: orders.orders.isEmpty
+      appBar: AppBar(
+        title: const Text('My Orders'),
+        actions: [
+          IconButton(
+            onPressed: () => context.read<OrderProvider>().loadOrders(),
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ],
+      ),
+      body: orders.loading
+          ? const Center(child: CircularProgressIndicator())
+          : orders.orders.isEmpty
           ? EmptyState(
               icon: Icons.receipt_long_outlined,
               title: 'No orders yet',
-              subtitle: 'Your homemade food orders will show up here',
-              actionLabel: 'Start ordering',
+              subtitle: 'Orders you place will appear here',
+              actionLabel: 'Start shopping',
               onAction: () => context.go('/home'),
             )
           : Responsive.constrained(

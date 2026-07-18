@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -245,4 +245,30 @@ model Coupon {
   minOrder      Float    @default(0)
   isActive      Boolean  @default(true)
   description   String?
+}
+
+/// "Sell from Home" applications — reviewed by platform admin (you).
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CONTACTED
+}
+
+model SellerApplication {
+  id             String            @id @default(uuid())
+  applicantName  String
+  businessName   String
+  phone          String
+  email          String?
+  city           String
+  area           String?
+  businessType   String
+  message        String?
+  status         ApplicationStatus @default(PENDING)
+  adminNotes     String?
+  reviewedAt     DateTime?
+  reviewedBy     String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 }

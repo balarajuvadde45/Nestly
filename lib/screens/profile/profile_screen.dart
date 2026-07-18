@@ -4,8 +4,8 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/responsive.dart';
-import '../../data/mock_data.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/catalog_provider.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/vendor_card.dart';
 
@@ -50,9 +50,11 @@ class ProfileScreen extends StatelessWidget {
                             onPressed: () => context.push('/login'),
                             child: const Text('Login / Sign up'),
                           ),
+                          const SizedBox(height: 8),
                           TextButton(
-                            onPressed: auth.loginAsGuest,
-                            child: const Text('Continue as guest (demo)'),
+                            onPressed: () =>
+                                context.push('/login?seller=1'),
+                            child: const Text('Seller login'),
                           ),
                         ],
                       )
@@ -123,6 +125,13 @@ class ProfileScreen extends StatelessWidget {
                   : 'Manage delivery addresses',
               () => context.push('/addresses'),
             ),
+            if (user?.role == 'ADMIN')
+              _tile(
+                Icons.admin_panel_settings_outlined,
+                'Seller applications',
+                'Review Sell from Home submissions',
+                () => context.push('/admin/applications'),
+              ),
             _tile(
               Icons.diversity_3_rounded,
               'Wisdom Circle',
@@ -256,28 +265,40 @@ class FavouritesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final catalog = context.watch<CatalogProvider>();
     final pad = Responsive.contentPadding(context);
     final favIds = auth.user?.favoriteVendorIds ?? [];
-    final vendors =
-        favIds.map(MockData.vendorById).whereType<dynamic>().toList();
+    final vendors = favIds
+        .map(catalog.vendorById)
+        .whereType<dynamic>()
+        .toList();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Favourites')),
-      body: vendors.isEmpty
+      body: !auth.isLoggedIn
           ? EmptyState(
-              icon: Icons.favorite_border_rounded,
-              title: 'No favourites yet',
-              subtitle: 'Tap the heart on a kitchen to save it',
-              actionLabel: 'Browse',
-              onAction: () => context.go('/home'),
+              icon: Icons.lock_outline,
+              title: 'Login required',
+              subtitle: 'Sign in to save favourites',
+              actionLabel: 'Login',
+              onAction: () => context.push('/login'),
             )
-          : ListView.separated(
-              padding: EdgeInsets.all(pad),
-              itemCount: vendors.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 12),
-              itemBuilder: (context, i) =>
-                  VendorCard(vendor: vendors[i]),
-            ),
+          : vendors.isEmpty
+              ? EmptyState(
+                  icon: Icons.favorite_border_rounded,
+                  title: 'No favourites yet',
+                  subtitle: 'Tap the heart on a seller to save it',
+                  actionLabel: 'Browse',
+                  onAction: () => context.go('/home'),
+                )
+              : ListView.separated(
+                  padding: EdgeInsets.all(pad),
+                  itemCount: vendors.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 12),
+                  itemBuilder: (context, i) =>
+                      VendorCard(vendor: vendors[i]),
+                ),
     );
   }
 }
@@ -293,13 +314,21 @@ class AddressesScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Addresses')),
-      body: addresses.isEmpty
+      body: !auth.isLoggedIn
+          ? EmptyState(
+              icon: Icons.lock_outline,
+              title: 'Login required',
+              subtitle: 'Sign in to manage delivery addresses',
+              actionLabel: 'Login',
+              onAction: () => context.push('/login'),
+            )
+          : addresses.isEmpty
           ? EmptyState(
               icon: Icons.location_off_outlined,
-              title: 'No addresses',
-              subtitle: 'Login as guest to see demo addresses',
-              actionLabel: 'Login as guest',
-              onAction: auth.loginAsGuest,
+              title: 'No addresses yet',
+              subtitle: 'Addresses appear after you register or login',
+              actionLabel: 'Home',
+              onAction: () => context.go('/home'),
             )
           : ListView.separated(
               padding: EdgeInsets.all(pad),

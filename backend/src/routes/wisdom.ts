@@ -1,11 +1,9 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { prisma } from '../lib/prisma';
 import { optionalAuth } from '../middleware/auth';
 
 export const wisdomRouter = Router();
 
-/** In-memory store if DB model not migrated yet — also tries Prisma when available */
 type MemPost = {
   id: string;
   authorName: string;
@@ -20,34 +18,8 @@ type MemPost = {
   helpfulCount: number;
 };
 
-const memPosts: MemPost[] = [
-  {
-    id: 'w1',
-    authorName: 'Kamala Ajji',
-    authorAge: 72,
-    isElder: true,
-    title: 'Tulsi-ginger kadha when cold starts',
-    body: 'Boil tulsi, ginger, turmeric and pepper. Add honey after cooling slightly. See a doctor if fever lasts over 2 days.',
-    type: 'remedy',
-    topic: 'coldFlu',
-    tags: ['cold', 'kadha'],
-    createdAt: new Date().toISOString(),
-    helpfulCount: 128,
-  },
-  {
-    id: 'w4',
-    authorName: 'Saraswati Ajji',
-    authorAge: 78,
-    isElder: true,
-    title: 'Why I still cook one full meal every Sunday',
-    body: 'Cooking for family keeps the mind busy and the heart warm. Call your parents often.',
-    type: 'story',
-    topic: 'lifeWisdom',
-    tags: ['family'],
-    createdAt: new Date().toISOString(),
-    helpfulCount: 210,
-  },
-];
+/** UAT: starts empty — community posts only what users publish. */
+const memPosts: MemPost[] = [];
 
 wisdomRouter.get('/posts', optionalAuth, async (_req, res) => {
   res.json({ posts: memPosts });
@@ -85,6 +57,3 @@ wisdomRouter.post('/posts', optionalAuth, async (req, res, next) => {
     next(e);
   }
 });
-
-// silence unused prisma until full model migration
-void prisma;

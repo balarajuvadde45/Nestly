@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/responsive.dart';
+import '../../providers/catalog_provider.dart';
 import '../../providers/seller_provider.dart';
 import '../../widgets/app_network_image.dart';
 import '../../widgets/veg_badge.dart';
@@ -31,8 +32,16 @@ class _SellerProductsScreenState extends State<SellerProductsScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => context.go('/seller'),
+        ),
         title: const Text('Products'),
         actions: [
+          TextButton(
+            onPressed: () => context.go('/home'),
+            child: const Text('Shop'),
+          ),
           IconButton(
             onPressed: () => context.push('/seller/products/new'),
             icon: const Icon(Icons.add_rounded),
@@ -302,6 +311,9 @@ class _SellerProductFormScreenState extends State<SellerProductFormScreen> {
     if (!mounted) return;
     setState(() => _saving = false);
     if (ok) {
+      // Refresh customer catalog so new products appear in UAT
+      // ignore: unawaited_futures
+      context.read<CatalogProvider>().loadHome();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(isEdit ? 'Product updated' : 'Product created')),
       );

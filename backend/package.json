@@ -12,7 +12,9 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts",
-    "setup": "npm install && prisma generate && prisma db push && tsx prisma/seed.ts"
+    "env:check": "tsx scripts/check-env.ts",
+    "db:setup": "tsx scripts/check-env.ts && prisma generate && prisma db push && tsx prisma/seed.ts",
+    "setup": "npm install && npm run db:setup"
   },
   "keywords": ["nestly", "marketplace"],
   "license": "UNLICENSED",

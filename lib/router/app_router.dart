@@ -10,6 +10,7 @@ import '../screens/orders/orders_screen.dart';
 import '../screens/product/product_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/search/search_screen.dart';
+import '../screens/admin/admin_applications_screen.dart';
 import '../screens/seller/become_seller_screen.dart';
 import '../screens/seller/seller_dashboard_screen.dart';
 import '../screens/seller/seller_onboard_screen.dart';
@@ -160,6 +161,10 @@ GoRouter createAppRouter() {
       GoRoute(
         path: '/become-seller',
         builder: (context, state) => const BecomeSellerScreen(),
+      ),
+      GoRoute(
+        path: '/admin/applications',
+        builder: (context, state) => const AdminApplicationsScreen(),
       ),
       // Seller dashboard (web + mobile)
       GoRoute(

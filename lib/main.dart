@@ -56,7 +56,7 @@ class _NestlyAppState extends State<NestlyApp> {
           create: (_) => SellerProvider(_api, _socket),
         ),
         ChangeNotifierProvider(
-          create: (_) => WisdomProvider(_api),
+          create: (_) => WisdomProvider(_api)..loadFromApi(),
         ),
       ],
       child: MaterialApp.router(

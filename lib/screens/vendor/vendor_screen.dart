@@ -22,6 +22,18 @@ class VendorScreen extends StatefulWidget {
 class _VendorScreenState extends State<VendorScreen> {
   bool _vegOnly = false;
   String _query = '';
+  bool _loadingProducts = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final catalog = context.read<CatalogProvider>();
+      await catalog.fetchVendor(widget.vendorId);
+      await catalog.fetchProductsForVendor(widget.vendorId);
+      if (mounted) setState(() => _loadingProducts = false);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,10 +45,12 @@ class _VendorScreenState extends State<VendorScreen> {
     if (vendor == null) {
       return Scaffold(
         appBar: AppBar(),
-        body: const EmptyState(
-          icon: Icons.store_outlined,
-          title: 'Seller not found',
-        ),
+        body: _loadingProducts
+            ? const Center(child: CircularProgressIndicator())
+            : const EmptyState(
+                icon: Icons.store_outlined,
+                title: 'Seller not found',
+              ),
       );
     }
 
@@ -279,11 +293,17 @@ class _VendorScreenState extends State<VendorScreen> {
                   ),
                   Padding(
                     padding: EdgeInsets.fromLTRB(pad, 8, pad, 100),
-                    child: products.isEmpty
+                    child: _loadingProducts
+                        ? const Padding(
+                            padding: EdgeInsets.all(40),
+                            child: Center(child: CircularProgressIndicator()),
+                          )
+                        : products.isEmpty
                         ? const EmptyState(
-                            icon: Icons.search_off_rounded,
-                            title: 'No items match',
-                            subtitle: 'Try clearing filters',
+                            icon: Icons.inventory_2_outlined,
+                            title: 'No products yet',
+                            subtitle:
+                                'This seller has not added items. Check back soon.',
                           )
                         : LayoutBuilder(
                             builder: (context, constraints) {

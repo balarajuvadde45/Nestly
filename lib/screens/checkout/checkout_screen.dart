@@ -47,16 +47,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       );
     }
 
-    // Ensure user for addresses
-    if (auth.user == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        auth.loginAsGuest();
-      });
-    }
-
     final addresses = auth.user?.addresses ?? [];
     _selectedAddress ??= auth.user?.defaultAddress ??
         (addresses.isNotEmpty ? addresses.first : null);
+
+    if (!auth.isLoggedIn) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Checkout')),
+        body: EmptyState(
+          icon: Icons.lock_outline_rounded,
+          title: 'Login required',
+          subtitle: 'Sign in to place an order with your saved address.',
+          actionLabel: 'Login',
+          onAction: () => context.push('/login'),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -306,42 +312,64 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final auth = context.read<AuthProvider>();
     final orders = context.read<OrderProvider>();
 
-    if (auth.user == null) auth.loginAsGuest();
-
-    final address = _selectedAddress ??
-        auth.user?.defaultAddress ??
-        const Address(
-          id: 'fallback',
-          label: 'Home',
-          fullAddress: 'Demo address',
-          area: 'Madhapur',
-          city: 'Hyderabad',
-          pincode: '500081',
+    if (!auth.isLoggedIn) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please log in to place an order')),
         );
+        context.push('/login');
+      }
+      return;
+    }
+
+    final address = _selectedAddress ?? auth.user?.defaultAddress;
+    if (address == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Add a delivery address in your profile first')),
+        );
+      }
+      return;
+    }
 
     final vendor = cart.vendor;
-    if (vendor == null) return;
+    if (vendor == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Seller info missing. Re-add items.')),
+        );
+      }
+      return;
+    }
 
     setState(() => _placing = true);
-    await Future.delayed(const Duration(milliseconds: 900));
+    try {
+      final order = await orders.placeOrder(
+        vendor: vendor,
+        items: cart.items,
+        address: address,
+        itemTotal: cart.itemTotal,
+        deliveryFee: cart.deliveryFee,
+        platformFee: cart.platformFee,
+        tax: cart.tax,
+        discount: cart.couponDiscount,
+        grandTotal: cart.grandTotal,
+        paymentMethod: _payment,
+        couponCode: cart.couponCode,
+      );
 
-    final order = await orders.placeOrder(
-      vendor: vendor,
-      items: cart.items,
-      address: address,
-      itemTotal: cart.itemTotal,
-      deliveryFee: cart.deliveryFee,
-      platformFee: cart.platformFee,
-      tax: cart.tax,
-      discount: cart.couponDiscount,
-      grandTotal: cart.grandTotal,
-      paymentMethod: _payment,
-      couponCode: cart.couponCode,
-    );
-
-    cart.clear();
-    if (!context.mounted) return;
-    setState(() => _placing = false);
-    context.go('/order-success/${order.id}');
+      cart.clear();
+      if (!context.mounted) return;
+      context.go('/order-success/${order.id}');
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Order failed: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _placing = false);
+    }
   }
 }

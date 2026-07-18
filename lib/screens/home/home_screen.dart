@@ -159,7 +159,68 @@ class _HomeScreenState extends State<HomeScreen> {
                   const HubShowcase(),
                   const SizedBox(height: 20),
 
+                  // API / empty catalog status for UAT
+                  if (catalog.loading)
+                    const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (catalog.error != null)
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: pad),
+                      child: Card(
+                        color: AppColors.primaryLight,
+                        child: ListTile(
+                          leading: const Icon(Icons.cloud_off_outlined),
+                          title: const Text('Cannot load live catalog'),
+                          subtitle: Text(catalog.error!,
+                              maxLines: 2, overflow: TextOverflow.ellipsis),
+                          trailing: TextButton(
+                            onPressed: () => catalog.loadHome(),
+                            child: const Text('Retry'),
+                          ),
+                        ),
+                      ),
+                    )
+                  else if (catalog.isEmptyCatalog)
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: pad),
+                      child: Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            children: [
+                              const Icon(Icons.storefront_outlined,
+                                  size: 40, color: AppColors.secondary),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'No sellers yet — perfect for UAT',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w800, fontSize: 16),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Register as a seller, create your storefront, and add products. They will appear here for customers.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                    height: 1.4),
+                              ),
+                              const SizedBox(height: 14),
+                              ElevatedButton(
+                                onPressed: () =>
+                                    context.push('/login?seller=1'),
+                                child: const Text('Open seller login'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+
                   // Banners
+                  if (catalog.banners.isNotEmpty)
                   SizedBox(
                     height: wide ? 220 : 160,
                     child: PageView.builder(
@@ -254,20 +315,23 @@ class _HomeScreenState extends State<HomeScreen> {
                       },
                     ),
                   ),
-                  Center(
-                    child: AnimatedSmoothIndicator(
-                      activeIndex: _bannerIndex,
-                      count: catalog.banners.length,
-                      effect: const WormEffect(
-                        dotHeight: 7,
-                        dotWidth: 7,
-                        activeDotColor: AppColors.primary,
-                        dotColor: AppColors.border,
+                  if (catalog.banners.isNotEmpty)
+                    Center(
+                      child: AnimatedSmoothIndicator(
+                        activeIndex: _bannerIndex.clamp(
+                            0, catalog.banners.isEmpty ? 0 : catalog.banners.length - 1),
+                        count: catalog.banners.length,
+                        effect: const WormEffect(
+                          dotHeight: 7,
+                          dotWidth: 7,
+                          activeDotColor: AppColors.primary,
+                          dotColor: AppColors.border,
+                        ),
                       ),
                     ),
-                  ),
 
                   // Categories
+                  if (catalog.categories.isNotEmpty) ...[
                   Padding(
                     padding: EdgeInsets.fromLTRB(pad, 24, pad, 0),
                     child: SectionHeader(
@@ -293,8 +357,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       },
                     ),
                   ),
+                  ],
 
                   // Popular near you
+                  if (catalog.popularVendors.isNotEmpty) ...[
                   Padding(
                     padding: EdgeInsets.fromLTRB(pad, 28, pad, 0),
                     child: SectionHeader(
@@ -317,13 +383,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
+                  ],
 
                   // Top rated
+                  if (catalog.topRated.isNotEmpty) ...[
                   Padding(
                     padding: EdgeInsets.fromLTRB(pad, 28, pad, 0),
-                    child: SectionHeader(
+                    child: const SectionHeader(
                       title: 'Top rated kitchens',
-                      subtitle: 'Loved by thousands of customers',
+                      subtitle: 'Loved by customers',
                     ),
                   ),
                   Padding(
@@ -349,8 +417,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       },
                     ),
                   ),
+                  ],
 
                   // Bestsellers
+                  if (catalog.bestsellers.isNotEmpty) ...[
                   Padding(
                     padding: EdgeInsets.fromLTRB(pad, 28, pad, 0),
                     child: const SectionHeader(
@@ -371,6 +441,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
+                  ],
 
                   // Become a seller CTA
                   Padding(

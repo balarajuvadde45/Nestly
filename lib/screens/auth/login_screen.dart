@@ -118,19 +118,18 @@ class _LoginScreenState extends State<LoginScreen>
                       ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  OutlinedButton(
-                    onPressed: () {
-                      auth.loginAsGuest();
-                      context.go('/home');
-                    },
-                    child: const Text('Continue as guest'),
-                  ),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Demo OTP: 123456  •  Any phone / email works',
+                  Text(
+                    widget.sellerMode
+                        ? 'UAT seller: amma@nestly.app / password123'
+                        : 'UAT customer: priya@nestly.app / password123\nPhone OTP demo: 123456',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 11, color: AppColors.textHint),
+                    style: const TextStyle(
+                        fontSize: 11, color: AppColors.textHint),
+                  ),
+                  TextButton(
+                    onPressed: () => context.go('/home'),
+                    child: const Text('Browse without login'),
                   ),
                 ],
               ),
@@ -259,10 +258,14 @@ class _LoginScreenState extends State<LoginScreen>
                   );
                   if (!mounted) return;
                   if (ok) {
-                    context.go(widget.sellerMode ||
-                            (auth.user?.isSeller ?? false)
-                        ? '/seller'
-                        : '/home');
+                    if (auth.user?.role == 'ADMIN') {
+                      context.go('/admin/applications');
+                    } else if (widget.sellerMode ||
+                        (auth.user?.isSeller ?? false)) {
+                      context.go('/seller');
+                    } else {
+                      context.go('/home');
+                    }
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(

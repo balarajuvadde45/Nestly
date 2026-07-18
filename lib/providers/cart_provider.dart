@@ -4,19 +4,18 @@ import '../core/constants/app_constants.dart';
 import '../models/cart_item.dart';
 import '../models/product.dart';
 import '../models/vendor.dart';
-import '../data/mock_data.dart';
 
 class CartProvider extends ChangeNotifier {
   final _uuid = const Uuid();
   final List<CartItem> _items = [];
   String? _vendorId;
+  Vendor? _vendor;
   String? _couponCode;
   double _couponDiscount = 0;
 
   List<CartItem> get items => List.unmodifiable(_items);
   String? get vendorId => _vendorId;
-  Vendor? get vendor =>
-      _vendorId != null ? MockData.vendorById(_vendorId!) : null;
+  Vendor? get vendor => _vendor;
   String? get couponCode => _couponCode;
   int get itemCount => _items.fold(0, (sum, i) => sum + i.quantity);
   bool get isEmpty => _items.isEmpty;
@@ -27,7 +26,7 @@ class CartProvider extends ChangeNotifier {
 
   double get deliveryFee {
     if (isEmpty) return 0;
-    if (vendor?.freeDelivery == true) return 0;
+    if (_vendor?.freeDelivery == true) return 0;
     if (itemTotal >= AppConstants.freeDeliveryMin) return 0;
     return AppConstants.deliveryFee;
   }
@@ -56,9 +55,14 @@ class CartProvider extends ChangeNotifier {
     return match.fold(0, (s, i) => s + i.quantity);
   }
 
-  /// Returns false if cart has items from another vendor.
   bool canAddFromVendor(String vendorId) {
     return _vendorId == null || _vendorId == vendorId || _items.isEmpty;
+  }
+
+  void setVendorContext(Vendor? vendor) {
+    if (vendor == null) return;
+    _vendor = vendor;
+    _vendorId = vendor.id;
   }
 
   void clearAndAdd(
@@ -66,9 +70,11 @@ class CartProvider extends ChangeNotifier {
     int quantity = 1,
     String? size,
     String? instructions,
+    Vendor? vendor,
   }) {
     _items.clear();
     _vendorId = product.vendorId;
+    if (vendor != null) _vendor = vendor;
     _couponCode = null;
     _couponDiscount = 0;
     _items.add(CartItem(
@@ -81,22 +87,26 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Returns true if added, false if blocked by different vendor.
   bool addItem(
     Product product, {
     int quantity = 1,
     String? size,
     String? instructions,
     bool forceReplace = false,
+    Vendor? vendor,
   }) {
     if (!canAddFromVendor(product.vendorId)) {
       if (!forceReplace) return false;
       clearAndAdd(product,
-          quantity: quantity, size: size, instructions: instructions);
+          quantity: quantity,
+          size: size,
+          instructions: instructions,
+          vendor: vendor);
       return true;
     }
 
     _vendorId ??= product.vendorId;
+    if (vendor != null) _vendor = vendor;
 
     final existingIndex = _items.indexWhere(
       (i) =>
@@ -136,6 +146,7 @@ class CartProvider extends ChangeNotifier {
       _items.removeAt(i);
       if (_items.isEmpty) {
         _vendorId = null;
+        _vendor = null;
         _couponCode = null;
         _couponDiscount = 0;
       }
@@ -152,6 +163,7 @@ class CartProvider extends ChangeNotifier {
       _items.removeAt(i);
       if (_items.isEmpty) {
         _vendorId = null;
+        _vendor = null;
         _couponCode = null;
         _couponDiscount = 0;
       }
@@ -165,6 +177,7 @@ class CartProvider extends ChangeNotifier {
     _items.removeWhere((e) => e.id == cartItemId);
     if (_items.isEmpty) {
       _vendorId = null;
+      _vendor = null;
       _couponCode = null;
       _couponDiscount = 0;
     }
@@ -174,20 +187,20 @@ class CartProvider extends ChangeNotifier {
   void clear() {
     _items.clear();
     _vendorId = null;
+    _vendor = null;
     _couponCode = null;
     _couponDiscount = 0;
     notifyListeners();
   }
 
-  /// Demo coupons: NESTLY20 (20% up to 100), FLAT50, FIRST100
   String? applyCoupon(String code) {
     final c = code.trim().toUpperCase();
     if (isEmpty) return 'Cart is empty';
 
     switch (c) {
       case 'NESTLY20':
-      case 'HOMEFOODS20': // legacy alias
-        _couponCode = c == 'HOMEFOODS20' ? 'NESTLY20' : c;
+      case 'HOMEFOODS20':
+        _couponCode = 'NESTLY20';
         _couponDiscount = (itemTotal * 0.2).clamp(0, 100);
         notifyListeners();
         return null;

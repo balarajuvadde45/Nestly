@@ -1,11 +1,11 @@
 import 'package:flutter/foundation.dart';
-import '../data/mock_data.dart';
 import '../models/order.dart';
 import '../models/user.dart';
 import '../services/api_client.dart';
 import '../services/api_mappers.dart';
 import '../services/socket_service.dart';
 
+/// Auth against Nestly API only (no guest/mock users for UAT).
 class AuthProvider extends ChangeNotifier {
   AuthProvider(this._api, this._socket);
 
@@ -22,7 +22,12 @@ class AuthProvider extends ChangeNotifier {
   AppUser? get user => _user;
   String? get token => _token;
   String? get vendorId => _vendorId;
-  bool get isLoggedIn => _user != null && _token != null;
+  bool get isLoggedIn =>
+      _user != null &&
+      _token != null &&
+      _token!.isNotEmpty &&
+      !_token!.startsWith('mock') &&
+      !_token!.startsWith('guest');
   bool get isSeller => _user?.isSeller == true;
   bool get isLoading => _isLoading;
   bool get backendOnline => _backendOnline;
@@ -40,24 +45,15 @@ class AuthProvider extends ChangeNotifier {
     try {
       final online = await _api.healthCheck();
       _backendOnline = online;
-      if (online) {
-        final res = await _api.post('/api/auth/phone-otp', body: {
-          'phone': phone,
-          'otp': otp,
-        });
-        _applyAuth(res);
-        return true;
-      }
-      // Offline mock
-      final cleaned = phone.replaceAll(RegExp(r'\D'), '');
-      if (cleaned.length < 10 || otp != '123456') {
-        _error = 'Invalid phone or OTP';
+      if (!online) {
+        _error = 'Server offline. Start Nestly API and try again.';
         return false;
       }
-      _token = 'mock-token';
-      _user = MockData.demoUser.copyWith(
-        phone: phone.startsWith('+') ? phone : '+91 $phone',
-      );
+      final res = await _api.post('/api/auth/phone-otp', body: {
+        'phone': phone,
+        'otp': otp,
+      });
+      _applyAuth(res);
       return true;
     } on ApiException catch (e) {
       _error = e.message;
@@ -78,20 +74,15 @@ class AuthProvider extends ChangeNotifier {
     try {
       final online = await _api.healthCheck();
       _backendOnline = online;
-      if (online) {
-        final res = await _api.post('/api/auth/login', body: {
-          'email': email.trim(),
-          'password': password,
-        });
-        _applyAuth(res);
-        return true;
-      }
-      if (email.isEmpty || password.length < 4) {
-        _error = 'Invalid credentials';
+      if (!online) {
+        _error = 'Server offline. Start Nestly API and try again.';
         return false;
       }
-      _token = 'mock-token';
-      _user = MockData.demoUser.copyWith(email: email);
+      final res = await _api.post('/api/auth/login', body: {
+        'email': email.trim(),
+        'password': password,
+      });
+      _applyAuth(res);
       return true;
     } on ApiException catch (e) {
       _error = e.message;
@@ -116,6 +107,12 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
+      final online = await _api.healthCheck();
+      _backendOnline = online;
+      if (!online) {
+        _error = 'Server offline. Start Nestly API and try again.';
+        return false;
+      }
       final res = await _api.post('/api/auth/register', body: {
         'name': name,
         'email': email,
@@ -137,13 +134,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  void loginAsGuest() {
-    _token = 'guest-token';
-    _user = MockData.demoUser;
-    _api.setToken(null);
-    notifyListeners();
-  }
-
   void _applyAuth(Map<String, dynamic> res) {
     _token = res['token'] as String?;
     final userJson = res['user'] as Map<String, dynamic>?;
@@ -153,7 +143,6 @@ class AuthProvider extends ChangeNotifier {
     _api.setToken(_token);
     _socket.setToken(_token);
     _socket.connect();
-    // Fetch vendor link for sellers
     if (_user?.isSeller == true) {
       _refreshMe();
     }
@@ -169,6 +158,8 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
     } catch (_) {}
   }
+
+  Future<void> refreshProfile() => _refreshMe();
 
   void logout() {
     _user = null;
@@ -186,7 +177,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   void toggleFavoriteVendor(String vendorId) {
-    if (_user == null) loginAsGuest();
+    if (_user == null) return;
     final list = List<String>.from(_user!.favoriteVendorIds);
     if (list.contains(vendorId)) {
       list.remove(vendorId);
@@ -198,7 +189,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   void toggleFavoriteProduct(String productId) {
-    if (_user == null) loginAsGuest();
+    if (_user == null) return;
     final list = List<String>.from(_user!.favoriteProductIds);
     if (list.contains(productId)) {
       list.remove(productId);

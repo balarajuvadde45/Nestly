@@ -7,6 +7,7 @@ import '../../core/utils/responsive.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/catalog_provider.dart';
+// CatalogProvider used when adding to cart with vendor context
 import '../../widgets/app_network_image.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/price_text.dart';
@@ -356,6 +357,8 @@ class _ProductScreenState extends State<ProductScreen> {
   }
 
   void _addToCart(BuildContext context, CartProvider cart, product) {
+    final vendor =
+        context.read<CatalogProvider>().vendorById(product.vendorId as String);
     final ok = cart.addItem(
       product,
       quantity: _qty,
@@ -363,6 +366,7 @@ class _ProductScreenState extends State<ProductScreen> {
       instructions: _notesController.text.trim().isEmpty
           ? null
           : _notesController.text.trim(),
+      vendor: vendor,
     );
     if (!ok) {
       showDialog(
@@ -386,6 +390,7 @@ class _ProductScreenState extends State<ProductScreen> {
                       ? null
                       : _notesController.text.trim(),
                   forceReplace: true,
+                  vendor: vendor,
                 );
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(

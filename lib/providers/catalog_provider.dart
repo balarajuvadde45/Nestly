@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import '../data/mock_data.dart';
 import '../models/banner_item.dart';
 import '../models/category.dart';
 import '../models/product.dart';
@@ -7,6 +6,7 @@ import '../models/vendor.dart';
 import '../services/api_client.dart';
 import '../services/api_mappers.dart';
 
+/// Live catalog from Nestly API only (no client-side mock data).
 class CatalogProvider extends ChangeNotifier {
   CatalogProvider(this._api);
 
@@ -35,21 +35,16 @@ class CatalogProvider extends ChangeNotifier {
   bool get loading => _loading;
   bool get loadedFromApi => _loadedFromApi;
   String? get error => _error;
+  bool get isEmptyCatalog =>
+      _vendors.isEmpty && _products.isEmpty && _loadedFromApi;
 
-  List<ShopCategory> get categories =>
-      _categories.isNotEmpty ? _categories : MockData.categories;
-  List<BannerItem> get banners =>
-      _banners.isNotEmpty ? _banners : MockData.banners;
-  List<Vendor> get allVendors =>
-      _vendors.isNotEmpty ? _vendors : MockData.vendors;
-  List<Product> get allProducts =>
-      _products.isNotEmpty ? _products : MockData.products;
-  List<Vendor> get popularVendors =>
-      _popular.isNotEmpty ? _popular : MockData.popularVendors;
-  List<Vendor> get topRated =>
-      _topRated.isNotEmpty ? _topRated : MockData.topRated;
-  List<Product> get bestsellers =>
-      _bestsellers.isNotEmpty ? _bestsellers : MockData.bestsellers;
+  List<ShopCategory> get categories => List.unmodifiable(_categories);
+  List<BannerItem> get banners => List.unmodifiable(_banners);
+  List<Vendor> get allVendors => List.unmodifiable(_vendors);
+  List<Product> get allProducts => List.unmodifiable(_products);
+  List<Vendor> get popularVendors => List.unmodifiable(_popular);
+  List<Vendor> get topRated => List.unmodifiable(_topRated);
+  List<Product> get bestsellers => List.unmodifiable(_bestsellers);
 
   Future<void> loadHome() async {
     _loading = true;
@@ -59,10 +54,12 @@ class CatalogProvider extends ChangeNotifier {
       final online = await _api.healthCheck();
       if (!online) {
         _loadedFromApi = false;
-        _loading = false;
-        notifyListeners();
+        _error =
+            'Cannot reach Nestly API. Start the backend and check API_BASE_URL.';
+        _clearCatalog();
         return;
       }
+
       final res = await _api.get('/api/catalog/home');
       _categories = (res['categories'] as List? ?? [])
           .map((e) => categoryFromJson(Map<String, dynamic>.from(e as Map)))
@@ -88,13 +85,76 @@ class CatalogProvider extends ChangeNotifier {
           .map((e) => productFromJson(Map<String, dynamic>.from(e as Map)))
           .toList();
 
+      // If bestsellers empty, derive from products
+      if (_bestsellers.isEmpty && _products.isNotEmpty) {
+        final sorted = List<Product>.from(_products)
+          ..sort((a, b) => b.reviewCount.compareTo(a.reviewCount));
+        _bestsellers = sorted.take(8).toList();
+      }
+      if (_popular.isEmpty) {
+        final sorted = List<Vendor>.from(_vendors)
+          ..sort((a, b) => b.orderCount.compareTo(a.orderCount));
+        _popular = sorted.take(6).toList();
+      }
+      if (_topRated.isEmpty) {
+        final sorted = List<Vendor>.from(_vendors)
+          ..sort((a, b) => b.rating.compareTo(a.rating));
+        _topRated = sorted.take(6).toList();
+      }
+
       _loadedFromApi = true;
     } catch (e) {
       _error = e.toString();
       _loadedFromApi = false;
+      _clearCatalog();
     } finally {
       _loading = false;
       notifyListeners();
+    }
+  }
+
+  void _clearCatalog() {
+    _categories = [];
+    _banners = [];
+    _vendors = [];
+    _products = [];
+    _popular = [];
+    _topRated = [];
+    _bestsellers = [];
+  }
+
+  /// Refresh a single vendor's products from API (seller storefront).
+  Future<List<Product>> fetchProductsForVendor(String vendorId) async {
+    try {
+      final res = await _api.get('/api/catalog/vendors/$vendorId/products');
+      final list = (res['products'] as List? ?? [])
+          .map((e) => productFromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+      // Merge into catalog cache
+      _products.removeWhere((p) => p.vendorId == vendorId);
+      _products.addAll(list);
+      notifyListeners();
+      return list;
+    } catch (_) {
+      return productsForVendor(vendorId);
+    }
+  }
+
+  Future<Vendor?> fetchVendor(String id) async {
+    try {
+      final res = await _api.get('/api/catalog/vendors/$id');
+      final v =
+          vendorFromJson(Map<String, dynamic>.from(res['vendor'] as Map));
+      final i = _vendors.indexWhere((x) => x.id == id);
+      if (i >= 0) {
+        _vendors[i] = v;
+      } else {
+        _vendors.add(v);
+      }
+      notifyListeners();
+      return v;
+    } catch (_) {
+      return vendorById(id);
     }
   }
 
@@ -127,7 +187,7 @@ class CatalogProvider extends ChangeNotifier {
   }
 
   List<Vendor> get filteredVendors {
-    var list = List<Vendor>.from(allVendors);
+    var list = List<Vendor>.from(_vendors);
 
     if (_selectedCategoryId != null) {
       list =
@@ -167,7 +227,7 @@ class CatalogProvider extends ChangeNotifier {
   }
 
   List<Product> get filteredProducts {
-    var list = List<Product>.from(allProducts);
+    var list = List<Product>.from(_products);
 
     if (_selectedCategoryId != null) {
       list = list.where((p) => p.categoryId == _selectedCategoryId).toList();
@@ -192,31 +252,31 @@ class CatalogProvider extends ChangeNotifier {
 
   Vendor? vendorById(String id) {
     try {
-      return allVendors.firstWhere((v) => v.id == id);
+      return _vendors.firstWhere((v) => v.id == id);
     } catch (_) {
-      return MockData.vendorById(id);
+      return null;
     }
   }
 
   Product? productById(String id) {
     try {
-      return allProducts.firstWhere((p) => p.id == id);
+      return _products.firstWhere((p) => p.id == id);
     } catch (_) {
-      return MockData.productById(id);
+      return null;
     }
   }
 
   ShopCategory? categoryById(String id) {
     try {
-      return categories.firstWhere((c) => c.id == id);
+      return _categories.firstWhere((c) => c.id == id);
     } catch (_) {
-      return MockData.categoryById(id);
+      return null;
     }
   }
 
   List<Product> productsForVendor(String id) =>
-      allProducts.where((p) => p.vendorId == id).toList();
+      _products.where((p) => p.vendorId == id).toList();
 
   List<Vendor> vendorsForCategory(String id) =>
-      allVendors.where((v) => v.categories.contains(id)).toList();
+      _vendors.where((v) => v.categories.contains(id)).toList();
 }

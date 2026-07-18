@@ -37,6 +37,11 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        leading: IconButton(
+          tooltip: 'Back to Nestly shop',
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => context.go('/home'),
+        ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -53,15 +58,73 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
           ],
         ),
         actions: [
+          TextButton.icon(
+            onPressed: () => context.go('/home'),
+            icon: const Icon(Icons.storefront_outlined, size: 18),
+            label: const Text('Shop'),
+          ),
           IconButton(
             tooltip: 'Refresh',
             onPressed: () => seller.loadDashboard(),
             icon: const Icon(Icons.refresh_rounded),
           ),
-          IconButton(
-            tooltip: 'Store settings',
-            onPressed: () => context.push('/seller/store'),
-            icon: const Icon(Icons.settings_outlined),
+          PopupMenuButton<String>(
+            tooltip: 'More',
+            onSelected: (v) {
+              switch (v) {
+                case 'home':
+                  context.go('/home');
+                  break;
+                case 'store':
+                  context.push('/seller/store');
+                  break;
+                case 'profile':
+                  context.go('/profile');
+                  break;
+                case 'logout':
+                  context.read<AuthProvider>().logout();
+                  context.go('/home');
+                  break;
+              }
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: 'home',
+                child: ListTile(
+                  dense: true,
+                  leading: Icon(Icons.home_outlined),
+                  title: Text('Customer home'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem(
+                value: 'store',
+                child: ListTile(
+                  dense: true,
+                  leading: Icon(Icons.settings_outlined),
+                  title: Text('Store settings'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem(
+                value: 'profile',
+                child: ListTile(
+                  dense: true,
+                  leading: Icon(Icons.person_outline),
+                  title: Text('My profile'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem(
+                value: 'logout',
+                child: ListTile(
+                  dense: true,
+                  leading: Icon(Icons.logout),
+                  title: Text('Log out'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -269,9 +332,10 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
               ),
               child: const Text('Create storefront'),
             ),
-            TextButton(
+            TextButton.icon(
               onPressed: () => context.go('/home'),
-              child: const Text('Back to customer app'),
+              icon: const Icon(Icons.home_outlined),
+              label: const Text('Back to Nestly shop'),
             ),
           ],
         ),

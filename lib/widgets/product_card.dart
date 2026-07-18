@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../core/theme/app_colors.dart';
 import '../models/product.dart';
 import '../providers/cart_provider.dart';
+import '../providers/catalog_provider.dart';
 import 'app_network_image.dart';
 import 'price_text.dart';
 import 'quantity_stepper.dart';
@@ -203,7 +204,9 @@ class ProductCard extends StatelessWidget {
       context.push('/product/${product.id}');
       return;
     }
-    final ok = cart.addItem(product);
+    final catalog = context.read<CatalogProvider>();
+    final vendor = catalog.vendorById(product.vendorId);
+    final ok = cart.addItem(product, vendor: vendor);
     if (!ok) {
       showDialog(
         context: context,
@@ -219,7 +222,7 @@ class ProductCard extends StatelessWidget {
                 child: const Text('No')),
             ElevatedButton(
               onPressed: () {
-                cart.addItem(product, forceReplace: true);
+                cart.addItem(product, forceReplace: true, vendor: vendor);
                 Navigator.pop(ctx);
               },
               child: const Text('Yes, replace'),
