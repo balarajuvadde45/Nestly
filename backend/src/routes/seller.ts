@@ -15,13 +15,14 @@ import {
 import {
   AuthedRequest,
   requireAuth,
-  requireRole,
+  requireSellerAccess,
 } from '../middleware/auth';
 import { getIo } from '../socket';
 
 export const sellerRouter = Router();
 
-sellerRouter.use(requireAuth, requireRole(Role.SELLER, Role.ADMIN));
+/** Seller dashboard API — JWT SELLER or DB-owned business (stale buyer token safe) */
+sellerRouter.use(requireAuth, requireSellerAccess());
 
 async function getOwnedVendor(userId: string, role: Role) {
   if (role === Role.ADMIN) {
@@ -30,7 +31,28 @@ async function getOwnedVendor(userId: string, role: Role) {
   return prisma.vendor.findUnique({ where: { ownerId: userId } });
 }
 
-/** Register / claim a seller storefront for the logged-in seller */
+async function logSeller(
+  userId: string,
+  action: string,
+  message?: string,
+  meta?: Record<string, unknown>,
+) {
+  try {
+    await prisma.activityLog.create({
+      data: {
+        userId,
+        mode: 'SELLER',
+        action,
+        message,
+        metaJson: meta ? JSON.stringify(meta) : null,
+      },
+    });
+  } catch {
+    // non-blocking
+  }
+}
+
+/** Register / claim a seller storefront (legacy path — prefer /api/buyer/open-business) */
 sellerRouter.post('/onboard', async (req: AuthedRequest, res, next) => {
   try {
     const schema = z.object({
@@ -60,11 +82,13 @@ sellerRouter.post('/onboard', async (req: AuthedRequest, res, next) => {
       where: { ownerId: req.user!.sub },
     });
     if (existing) {
-      res.status(409).json({ error: 'You already have a storefront', vendor: serializeVendor(existing) });
+      res.status(409).json({
+        error: 'You already have a storefront',
+        vendor: serializeVendor(existing),
+      });
       return;
     }
 
-    // Ensure user is SELLER
     await prisma.user.update({
       where: { id: req.user!.sub },
       data: { role: Role.SELLER },
@@ -95,7 +119,24 @@ sellerRouter.post('/onboard', async (req: AuthedRequest, res, next) => {
       },
     });
 
-    res.status(201).json({ vendor: serializeVendor(vendor) });
+    await logSeller(req.user!.sub, 'STORE_ONBOARD', `Store ${vendor.name}`);
+    res.status(201).json({ vendor: serializeVendor(vendor), mode: 'seller' });
+  } catch (e) {
+    next(e);
+  }
+});
+
+/** Seller-side activity log */
+sellerRouter.post('/log', async (req: AuthedRequest, res, next) => {
+  try {
+    const schema = z.object({
+      action: z.string().min(2),
+      message: z.string().optional(),
+      meta: z.record(z.unknown()).optional(),
+    });
+    const body = schema.parse(req.body);
+    await logSeller(req.user!.sub, body.action, body.message, body.meta);
+    res.status(201).json({ ok: true, mode: 'seller' });
   } catch (e) {
     next(e);
   }
@@ -233,7 +274,7 @@ sellerRouter.patch('/products/:id', async (req: AuthedRequest, res, next) => {
       return;
     }
     const existing = await prisma.product.findFirst({
-      where: { id: req.params.id, vendorId: vendor.id },
+      where: { id: String(req.params.id), vendorId: vendor.id },
     });
     if (!existing) {
       res.status(404).json({ error: 'Product not found' });
@@ -284,7 +325,7 @@ sellerRouter.delete('/products/:id', async (req: AuthedRequest, res, next) => {
       return;
     }
     const existing = await prisma.product.findFirst({
-      where: { id: req.params.id, vendorId: vendor.id },
+      where: { id: String(req.params.id), vendorId: vendor.id },
     });
     if (!existing) {
       res.status(404).json({ error: 'Product not found' });
@@ -345,7 +386,7 @@ sellerRouter.patch(
       });
       const body = schema.parse(req.body);
       const order = await prisma.order.findFirst({
-        where: { id: req.params.id, vendorId: vendor.id },
+        where: { id: String(req.params.id), vendorId: vendor.id },
         include: { address: true },
       });
       if (!order) {

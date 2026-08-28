@@ -132,6 +132,11 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen> {
         ),
         actions: [
           IconButton(
+            tooltip: 'Activity logs',
+            onPressed: _showLogs,
+            icon: const Icon(Icons.history_rounded),
+          ),
+          IconButton(
             onPressed: _load,
             icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Refresh',
@@ -357,6 +362,66 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen> {
               ],
             ),
     );
+  }
+
+  Future<void> _showLogs() async {
+    try {
+      final api = context.read<ApiClient>();
+      final res = await api.get('/api/seller-applications/activity/logs');
+      final logs = (res['logs'] as List? ?? [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      if (!mounted) return;
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        builder: (ctx) => DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.7,
+          builder: (_, scroll) => Column(
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'Activity logs (Buyer / Seller)',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                ),
+              ),
+              Expanded(
+                child: logs.isEmpty
+                    ? const Center(child: Text('No logs yet'))
+                    : ListView.builder(
+                        controller: scroll,
+                        itemCount: logs.length,
+                        itemBuilder: (_, i) {
+                          final l = logs[i];
+                          return ListTile(
+                            dense: true,
+                            leading: Chip(
+                              label: Text(
+                                '${l['mode']}',
+                                style: const TextStyle(fontSize: 10),
+                              ),
+                            ),
+                            title: Text('${l['action']}'),
+                            subtitle: Text(
+                              '${l['message'] ?? ''}\n${l['createdAt'] ?? ''}',
+                            ),
+                            isThreeLine: true,
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    }
   }
 
   Widget _chip(String? value, String label) {

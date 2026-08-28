@@ -54,6 +54,8 @@ model User {
   passwordHash String
   role         Role      @default(CUSTOMER)
   avatarUrl    String?
+  googleId     String?   @unique
+  authProvider String    @default("email") // email | phone | google
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -61,6 +63,9 @@ model User {
   orders       Order[]   @relation("CustomerOrders")
   vendor       Vendor?
   favorites    Favorite[]
+
+  @@index([phone])
+  @@index([email])
 }
 
 model Address {
@@ -125,6 +130,11 @@ model Vendor {
   owner    User?     @relation(fields: [ownerId], references: [id])
   products Product[]
   orders   Order[]
+
+  @@index([isApproved, city])
+  @@index([name])
+  @@index([orderCount])
+  @@index([rating])
 }
 
 model Product {
@@ -151,6 +161,11 @@ model Product {
   category ShopCategory? @relation(fields: [categoryId], references: [id])
   items    OrderItem[]
   favorites Favorite[]
+
+  @@index([isAvailable, name])
+  @@index([vendorId, isAvailable])
+  @@index([categoryId])
+  @@index([reviewCount])
 }
 
 model Favorite {
@@ -271,4 +286,24 @@ model SellerApplication {
   reviewedBy     String?
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
+}
+
+/// Separate activity trails for Buyer shop vs Seller dashboard.
+enum ActivityMode {
+  BUYER
+  SELLER
+  ADMIN
+}
+
+model ActivityLog {
+  id        String       @id @default(uuid())
+  userId    String?
+  mode      ActivityMode
+  action    String
+  message   String?
+  metaJson  String?
+  createdAt DateTime     @default(now())
+
+  @@index([mode, createdAt])
+  @@index([userId, createdAt])
 }

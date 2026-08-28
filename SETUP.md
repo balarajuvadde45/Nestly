@@ -8,7 +8,7 @@ This document lists **exactly what you need to do** on your machine.
 
 | Piece | Tech | Location |
 |--------|------|----------|
-| API + DB | Node.js, Express, Prisma, SQLite, JWT | `backend/` |
+| API + DB | Node.js, Express, Prisma, PostgreSQL, JWT | `backend/` |
 | Live tracking | Socket.IO + order rider lat/lng | `backend/src/socket.ts` |
 | Customer app | Flutter (Android + Web) — **Nestly** | `lib/` |
 | Seller dashboard | Flutter routes `/seller/*` | `lib/screens/seller/` |
@@ -82,7 +82,7 @@ flutter run -d chrome --dart-define=GOOGLE_MAPS_API_KEY=YOUR_KEY --dart-define=A
 ```
 
 Android: put `GOOGLE_MAPS_API_KEY=YOUR_KEY` in `android/local.properties`  
-Package for restriction: `com.example.nestly`
+Package for restriction: `in.nestly.app`
 
 ### 3. Point the app at the backend
 

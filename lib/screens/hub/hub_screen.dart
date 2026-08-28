@@ -221,7 +221,7 @@ class HubScreen extends StatelessWidget {
                     ),
                   ),
 
-                  // Women sellers CTA for clothes
+                  // Boutique sellers CTA
                   if (hub.id == 'hub_clothes') ...[
                     Padding(
                       padding: EdgeInsets.fromLTRB(pad, 24, pad, 0),
@@ -238,13 +238,13 @@ class HubScreen extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              'Are you a home boutique owner?',
+                              'Sell fashion from home or your shop',
                               style: TextStyle(
                                   fontWeight: FontWeight.w800, fontSize: 17),
                             ),
                             const SizedBox(height: 6),
                             const Text(
-                              'Thousands of women sell kurtis, sarees, kids wear and custom stitching from home. List sizes, photos & offers — customers nearby can order like Meesho + local trust.',
+                              'List kurtis, sarees, kids wear, custom stitching and more. Reach customers nearby with Nestly.',
                               style: TextStyle(
                                 fontSize: 13,
                                 color: AppColors.textSecondary,
@@ -253,12 +253,11 @@ class HubScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 12),
                             ElevatedButton(
-                              onPressed: () =>
-                                  context.push('/become-seller'),
+                              onPressed: () => context.push('/sell'),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.secondary,
                               ),
-                              child: const Text('Start your boutique store'),
+                              child: const Text('Start selling fashion'),
                             ),
                           ],
                         ),
@@ -271,7 +270,7 @@ class HubScreen extends StatelessWidget {
                       padding: EdgeInsets.fromLTRB(pad, 24, pad, 0),
                       child: const SectionHeader(
                         title: 'Home boutiques',
-                        subtitle: 'Women-led fashion from nearby homes',
+                        subtitle: 'Fashion from local home & shop sellers',
                       ),
                     ),
                     SizedBox(
@@ -332,7 +331,7 @@ class HubScreen extends StatelessWidget {
                               crossAxisCount: cols,
                               mainAxisSpacing: 12,
                               crossAxisSpacing: 12,
-                              childAspectRatio: 0.62,
+                              childAspectRatio: Responsive.productAspect(context),
                             ),
                             itemBuilder: (context, i) =>
                                 ProductCard(product: products[i]),

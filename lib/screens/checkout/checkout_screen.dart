@@ -9,6 +9,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/order_provider.dart';
 import '../../widgets/empty_state.dart';
+import '../profile/addresses_screen.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -18,16 +19,8 @@ class CheckoutScreen extends StatefulWidget {
 }
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
-  String _payment = 'UPI';
   Address? _selectedAddress;
   bool _placing = false;
-
-  static const _payments = [
-    ('UPI', Icons.qr_code_rounded),
-    ('Card', Icons.credit_card_rounded),
-    ('Cash on Delivery', Icons.payments_outlined),
-    ('Wallet', Icons.account_balance_wallet_outlined),
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -77,11 +70,30 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
             ),
             const SizedBox(height: 10),
+            TextButton.icon(
+              onPressed: () async {
+                await showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.white,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
+                  builder: (ctx) => const AddressFormSheet(),
+                );
+                if (mounted) setState(() {});
+              },
+              icon: const Icon(Icons.add_location_alt_outlined),
+              label: const Text('Add new address'),
+            ),
             if (addresses.isEmpty)
               const Card(
                 child: Padding(
                   padding: EdgeInsets.all(16),
-                  child: Text('No address found. Using demo address on place order.'),
+                  child: Text(
+                    'Add a delivery address to place your order.',
+                  ),
                 ),
               )
             else
@@ -175,59 +187,40 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
             ),
             const SizedBox(height: 10),
-            ..._payments.map((p) {
-              final selected = _payment == p.$1;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Material(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(14),
-                    onTap: () => setState(() => _payment = p.$1),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 14),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color:
-                              selected ? AppColors.primary : AppColors.border,
-                          width: selected ? 1.5 : 1,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.primary, width: 1.5),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.payments_outlined, color: AppColors.primary),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Cash on Delivery',
+                          style: TextStyle(fontWeight: FontWeight.w700),
                         ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(p.$2,
-                              color: selected
-                                  ? AppColors.primary
-                                  : AppColors.textSecondary),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              p.$1,
-                              style: TextStyle(
-                                fontWeight: selected
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
-                              ),
-                            ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Pay in cash when your order arrives. Online payments coming soon.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
                           ),
-                          Icon(
-                            selected
-                                ? Icons.check_circle_rounded
-                                : Icons.circle_outlined,
-                            color: selected
-                                ? AppColors.primary
-                                : AppColors.textHint,
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              );
-            }),
+                  Icon(Icons.check_circle_rounded, color: AppColors.primary),
+                ],
+              ),
+            ),
             const SizedBox(height: 20),
             Card(
               child: Padding(
@@ -247,9 +240,44 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            Text(
-              'By placing order you agree to Nestly terms of service (demo).',
-              style: const TextStyle(fontSize: 11, color: AppColors.textHint),
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                const Text(
+                  'By placing this order you agree to Nestly ',
+                  style: TextStyle(fontSize: 11, color: AppColors.textHint),
+                ),
+                GestureDetector(
+                  onTap: () => context.push('/legal/terms'),
+                  child: const Text(
+                    'Terms',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const Text(
+                  ' and ',
+                  style: TextStyle(fontSize: 11, color: AppColors.textHint),
+                ),
+                GestureDetector(
+                  onTap: () => context.push('/legal/privacy'),
+                  child: const Text(
+                    'Privacy Policy',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const Text(
+                  '.',
+                  style: TextStyle(fontSize: 11, color: AppColors.textHint),
+                ),
+              ],
             ),
           ],
         ),
@@ -355,7 +383,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         tax: cart.tax,
         discount: cart.couponDiscount,
         grandTotal: cart.grandTotal,
-        paymentMethod: _payment,
+        paymentMethod: 'COD',
         couponCode: cart.couponCode,
       );
 

@@ -148,7 +148,7 @@ class CategoryScreen extends StatelessWidget {
                               crossAxisCount: cols,
                               mainAxisSpacing: 12,
                               crossAxisSpacing: 12,
-                              childAspectRatio: 0.62,
+                              childAspectRatio: Responsive.productAspect(context),
                             ),
                             itemBuilder: (context, i) =>
                                 ProductCard(product: products[i]),

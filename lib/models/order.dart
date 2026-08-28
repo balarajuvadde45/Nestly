@@ -35,6 +35,36 @@ class Address {
   });
 
   String get short => '$area, $city';
+
+  bool get isPlaceholder =>
+      fullAddress.toLowerCase().contains('please update') ||
+      fullAddress.trim().isEmpty;
+
+  Address copyWith({
+    String? id,
+    String? label,
+    String? fullAddress,
+    String? area,
+    String? city,
+    String? pincode,
+    String? landmark,
+    bool? isDefault,
+    double? lat,
+    double? lng,
+  }) {
+    return Address(
+      id: id ?? this.id,
+      label: label ?? this.label,
+      fullAddress: fullAddress ?? this.fullAddress,
+      area: area ?? this.area,
+      city: city ?? this.city,
+      pincode: pincode ?? this.pincode,
+      landmark: landmark ?? this.landmark,
+      isDefault: isDefault ?? this.isDefault,
+      lat: lat ?? this.lat,
+      lng: lng ?? this.lng,
+    );
+  }
 }
 
 class Order {

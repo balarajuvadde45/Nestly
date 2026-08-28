@@ -5,7 +5,8 @@ plugins {
 }
 
 android {
-    namespace = "com.example.nestly"
+    // Play application id is in.nestly.app. Namespace avoids Kotlin reserved word `in`.
+    namespace = "app.nestly.android"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -15,8 +16,7 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.nestly"
+        applicationId = "in.nestly.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

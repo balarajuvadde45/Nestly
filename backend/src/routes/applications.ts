@@ -136,6 +136,38 @@ applicationsRouter.get(
   },
 );
 
+/** Admin: activity logs (buyer vs seller) */
+applicationsRouter.get(
+  '/activity/logs',
+  requireAuth,
+  requireRole(Role.ADMIN),
+  async (req, res, next) => {
+    try {
+      const mode = req.query.mode as string | undefined;
+      const logs = await prisma.activityLog.findMany({
+        where: mode
+          ? { mode: mode as 'BUYER' | 'SELLER' | 'ADMIN' }
+          : undefined,
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      });
+      res.json({
+        logs: logs.map((l) => ({
+          id: l.id,
+          userId: l.userId,
+          mode: l.mode,
+          action: l.action,
+          message: l.message,
+          meta: l.metaJson,
+          createdAt: l.createdAt.toISOString(),
+        })),
+      });
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+
 /** Admin: get one */
 applicationsRouter.get(
   '/:id',

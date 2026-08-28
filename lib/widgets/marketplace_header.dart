@@ -63,7 +63,7 @@ class MarketplaceHeader extends StatelessWidget {
                             ),
                           ),
                           const Text(
-                            'Women-led homes · Food · Fashion · Wisdom',
+                            'Home businesses worldwide · Food · Fashion · Wisdom',
                             style: TextStyle(
                               fontSize: 11,
                               color: AppColors.textSecondary,
@@ -75,14 +75,14 @@ class MarketplaceHeader extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                OutlinedButton.icon(
-                  onPressed: () => context.push('/become-seller'),
-                  icon: const Icon(Icons.storefront_outlined, size: 18),
-                  label: const Text('Sell from home'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.secondary,
-                    side: const BorderSide(color: AppColors.secondary),
+                IconButton.filled(
+                  onPressed: () => context.push('/sell'),
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColors.secondary,
+                    foregroundColor: Colors.white,
                   ),
+                  icon: const Icon(Icons.storefront_rounded),
+                  tooltip: 'Become a seller',
                 ),
                 const SizedBox(width: 8),
                 IconButton(
@@ -131,9 +131,10 @@ class MarketplaceHeader extends StatelessWidget {
                         const SizedBox(width: 4),
                       ],
                       const Spacer(),
-                      TextButton(
-                        onPressed: () => context.push('/seller'),
-                        child: const Text('Seller dashboard'),
+                      TextButton.icon(
+                        onPressed: () => context.push('/sell'),
+                        icon: const Icon(Icons.storefront_outlined, size: 18),
+                        label: const Text('Sell'),
                       ),
                     ],
                   ),

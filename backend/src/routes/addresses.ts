@@ -53,3 +53,59 @@ addressesRouter.post('/', async (req: AuthedRequest, res, next) => {
     next(e);
   }
 });
+
+const addressUpdateSchema = z.object({
+  label: z.string().min(1).optional(),
+  fullAddress: z.string().min(3).optional(),
+  area: z.string().min(2).optional(),
+  city: z.string().min(2).optional(),
+  pincode: z.string().min(4).optional(),
+  landmark: z.string().optional(),
+  lat: z.number().optional(),
+  lng: z.number().optional(),
+  isDefault: z.boolean().optional(),
+});
+
+addressesRouter.patch('/:id', async (req: AuthedRequest, res, next) => {
+  try {
+    const id = String(req.params.id);
+    const body = addressUpdateSchema.parse(req.body);
+    const existing = await prisma.address.findFirst({
+      where: { id, userId: req.user!.sub },
+    });
+    if (!existing) {
+      res.status(404).json({ error: 'Address not found' });
+      return;
+    }
+    if (body.isDefault) {
+      await prisma.address.updateMany({
+        where: { userId: req.user!.sub },
+        data: { isDefault: false },
+      });
+    }
+    const address = await prisma.address.update({
+      where: { id },
+      data: body,
+    });
+    res.json({ address: serializeAddress(address) });
+  } catch (e) {
+    next(e);
+  }
+});
+
+addressesRouter.delete('/:id', async (req: AuthedRequest, res, next) => {
+  try {
+    const id = String(req.params.id);
+    const existing = await prisma.address.findFirst({
+      where: { id, userId: req.user!.sub },
+    });
+    if (!existing) {
+      res.status(404).json({ error: 'Address not found' });
+      return;
+    }
+    await prisma.address.delete({ where: { id } });
+    res.json({ ok: true });
+  } catch (e) {
+    next(e);
+  }
+});

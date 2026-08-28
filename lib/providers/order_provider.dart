@@ -64,18 +64,10 @@ class OrderProvider extends ChangeNotifier {
       throw Exception('Please log in to place an order.');
     }
 
-    final paymentMap = {
-      'UPI': 'UPI',
-      'Card': 'CARD',
-      'Cash on Delivery': 'COD',
-      'Wallet': 'WALLET',
-      'COD': 'COD',
-    };
-
     final res = await _api.post('/api/orders', body: {
       'vendorId': vendor.id,
       'addressId': address.id,
-      'paymentMethod': paymentMap[paymentMethod] ?? 'COD',
+      'paymentMethod': 'COD',
       if (couponCode != null && couponCode.isNotEmpty) 'couponCode': couponCode,
       'items': items
           .map((i) => {

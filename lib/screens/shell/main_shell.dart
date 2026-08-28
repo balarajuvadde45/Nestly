@@ -7,6 +7,7 @@ import '../../core/utils/responsive.dart';
 import '../../providers/cart_provider.dart';
 import '../../widgets/cart_fab.dart';
 import '../../widgets/marketplace_header.dart';
+// Buyer-only shell — seller is a separate surface via /sell
 
 class MainShell extends StatelessWidget {
   final Widget child;
@@ -138,19 +139,35 @@ class MainShell extends StatelessWidget {
                       child: Align(
                         alignment: Alignment.bottomCenter,
                         child: Padding(
-                          padding: const EdgeInsets.only(bottom: 24),
-                          child: IconButton.filled(
-                            onPressed: () => context.push('/cart'),
-                            style: IconButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: Colors.white,
-                            ),
-                            icon: Badge(
-                              isLabelVisible: cart.itemCount > 0,
-                              label: Text('${cart.itemCount}'),
-                              child: const Icon(Icons.shopping_bag_outlined),
-                            ),
-                            tooltip: 'Cart',
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton.filled(
+                                onPressed: () => context.push('/sell'),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: AppColors.secondary,
+                                  foregroundColor: Colors.white,
+                                ),
+                                icon: const Icon(Icons.storefront_rounded),
+                                tooltip: 'Become a seller',
+                              ),
+                              const SizedBox(height: 8),
+                              IconButton.filled(
+                                onPressed: () => context.push('/cart'),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: Colors.white,
+                                ),
+                                icon: Badge(
+                                  isLabelVisible: cart.itemCount > 0,
+                                  label: Text('${cart.itemCount}'),
+                                  child:
+                                      const Icon(Icons.shopping_bag_outlined),
+                                ),
+                                tooltip: 'Cart',
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -192,6 +209,15 @@ class MainShell extends StatelessWidget {
             ),
         ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.push('/sell'),
+        backgroundColor: AppColors.secondary,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.storefront_rounded),
+        label: const Text('Sell'),
+        tooltip: 'Become a seller / Seller dashboard',
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => _onTap(context, i),

@@ -167,11 +167,49 @@ class _SearchScreenState extends State<SearchScreen>
       ),
       body: query.isEmpty
           ? _suggestionsView(context, catalog, pad)
-          : TabBarView(
-              controller: _tabs,
+          : Column(
               children: [
-                _vendorsList(vendors, pad),
-                _productsList(products, pad),
+                if (catalog.searching || catalog.lastSearchMs != null)
+                  Padding(
+                    padding:
+                        EdgeInsets.symmetric(horizontal: pad, vertical: 6),
+                    child: Row(
+                      children: [
+                        if (catalog.searching) ...[
+                          const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Searching…',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ] else if (catalog.lastSearchMs != null)
+                          Text(
+                            'Results in ${catalog.lastSearchMs} ms',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabs,
+                    children: [
+                      _vendorsList(vendors, pad),
+                      _productsList(products, pad),
+                    ],
+                  ),
+                ),
               ],
             ),
     );
@@ -252,6 +290,7 @@ class _SearchScreenState extends State<SearchScreen>
       );
     }
     final cols = Responsive.gridColumns(context, mobile: 2, tablet: 3, desktop: 4);
+    final aspect = Responsive.productAspect(context);
     return GridView.builder(
       padding: EdgeInsets.fromLTRB(pad, 12, pad, 100),
       itemCount: products.length,
@@ -259,7 +298,7 @@ class _SearchScreenState extends State<SearchScreen>
         crossAxisCount: cols,
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
-        childAspectRatio: 0.62,
+        childAspectRatio: aspect,
       ),
       itemBuilder: (context, i) => ProductCard(product: products[i]),
     );

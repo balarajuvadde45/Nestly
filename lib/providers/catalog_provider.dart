@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../models/banner_item.dart';
 import '../models/category.dart';
@@ -17,8 +18,10 @@ class CatalogProvider extends ChangeNotifier {
   bool _vegOnly = false;
   String _sortBy = 'relevance';
   bool _loading = false;
+  bool _searching = false;
   bool _loadedFromApi = false;
   String? _error;
+  int? _lastSearchMs;
 
   List<ShopCategory> _categories = [];
   List<BannerItem> _banners = [];
@@ -28,13 +31,23 @@ class CatalogProvider extends ChangeNotifier {
   List<Vendor> _topRated = [];
   List<Product> _bestsellers = [];
 
+  /// Live search results from API (when query is active).
+  List<Vendor> _searchVendors = [];
+  List<Product> _searchProducts = [];
+  bool _useServerSearch = false;
+
+  Timer? _searchDebounce;
+  int _searchSeq = 0;
+
   String get searchQuery => _searchQuery;
   String? get selectedCategoryId => _selectedCategoryId;
   bool get vegOnly => _vegOnly;
   String get sortBy => _sortBy;
   bool get loading => _loading;
+  bool get searching => _searching;
   bool get loadedFromApi => _loadedFromApi;
   String? get error => _error;
+  int? get lastSearchMs => _lastSearchMs;
   bool get isEmptyCatalog =>
       _vendors.isEmpty && _products.isEmpty && _loadedFromApi;
 
@@ -85,7 +98,6 @@ class CatalogProvider extends ChangeNotifier {
           .map((e) => productFromJson(Map<String, dynamic>.from(e as Map)))
           .toList();
 
-      // If bestsellers empty, derive from products
       if (_bestsellers.isEmpty && _products.isNotEmpty) {
         final sorted = List<Product>.from(_products)
           ..sort((a, b) => b.reviewCount.compareTo(a.reviewCount));
@@ -123,14 +135,12 @@ class CatalogProvider extends ChangeNotifier {
     _bestsellers = [];
   }
 
-  /// Refresh a single vendor's products from API (seller storefront).
   Future<List<Product>> fetchProductsForVendor(String vendorId) async {
     try {
       final res = await _api.get('/api/catalog/vendors/$vendorId/products');
       final list = (res['products'] as List? ?? [])
           .map((e) => productFromJson(Map<String, dynamic>.from(e as Map)))
           .toList();
-      // Merge into catalog cache
       _products.removeWhere((p) => p.vendorId == vendorId);
       _products.addAll(list);
       notifyListeners();
@@ -158,9 +168,80 @@ class CatalogProvider extends ChangeNotifier {
     }
   }
 
+  /// Instant local filter + debounced server search (target < 1s).
   void setSearchQuery(String q) {
     _searchQuery = q;
+    if (q.trim().isEmpty) {
+      _searchDebounce?.cancel();
+      _useServerSearch = false;
+      _searchVendors = [];
+      _searchProducts = [];
+      _searching = false;
+      _lastSearchMs = null;
+      notifyListeners();
+      return;
+    }
+
+    // Local filter updates immediately for snappy UI
+    _useServerSearch = false;
     notifyListeners();
+
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 220), () {
+      _runServerSearch(q.trim());
+    });
+  }
+
+  Future<void> _runServerSearch(String q) async {
+    if (q != _searchQuery.trim()) return;
+    final seq = ++_searchSeq;
+    _searching = true;
+    notifyListeners();
+    final sw = Stopwatch()..start();
+    try {
+      final res = await _api.get('/api/catalog/search', query: {
+        'q': q,
+        if (_vegOnly) 'vegOnly': 'true',
+        'limit': '32',
+      });
+      if (seq != _searchSeq || q != _searchQuery.trim()) return;
+
+      _searchVendors = (res['vendors'] as List? ?? [])
+          .map((e) => vendorFromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+      _searchProducts = (res['products'] as List? ?? [])
+          .map((e) => productFromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+      _useServerSearch = true;
+      _lastSearchMs = (res['tookMs'] as num?)?.toInt() ?? sw.elapsedMilliseconds;
+
+      // Merge into local cache for detail navigation
+      for (final v in _searchVendors) {
+        final i = _vendors.indexWhere((x) => x.id == v.id);
+        if (i >= 0) {
+          _vendors[i] = v;
+        } else {
+          _vendors.add(v);
+        }
+      }
+      for (final p in _searchProducts) {
+        final i = _products.indexWhere((x) => x.id == p.id);
+        if (i >= 0) {
+          _products[i] = p;
+        } else {
+          _products.add(p);
+        }
+      }
+    } catch (_) {
+      // Keep local filtered results if server search fails
+      _useServerSearch = false;
+      _lastSearchMs = sw.elapsedMilliseconds;
+    } finally {
+      if (seq == _searchSeq) {
+        _searching = false;
+        notifyListeners();
+      }
+    }
   }
 
   void setCategory(String? id) {
@@ -170,6 +251,9 @@ class CatalogProvider extends ChangeNotifier {
 
   void setVegOnly(bool value) {
     _vegOnly = value;
+    if (_searchQuery.trim().isNotEmpty) {
+      _runServerSearch(_searchQuery.trim());
+    }
     notifyListeners();
   }
 
@@ -183,10 +267,20 @@ class CatalogProvider extends ChangeNotifier {
     _selectedCategoryId = null;
     _vegOnly = false;
     _sortBy = 'relevance';
+    _useServerSearch = false;
+    _searchVendors = [];
+    _searchProducts = [];
     notifyListeners();
   }
 
   List<Vendor> get filteredVendors {
+    if (_useServerSearch && _searchQuery.trim().isNotEmpty) {
+      var list = List<Vendor>.from(_searchVendors);
+      if (_vegOnly) list = list.where((v) => v.isPureVeg).toList();
+      _sortVendors(list);
+      return list;
+    }
+
     var list = List<Vendor>.from(_vendors);
 
     if (_selectedCategoryId != null) {
@@ -209,6 +303,11 @@ class CatalogProvider extends ChangeNotifier {
       list = list.where((v) => v.isPureVeg).toList();
     }
 
+    _sortVendors(list);
+    return list;
+  }
+
+  void _sortVendors(List<Vendor> list) {
     switch (_sortBy) {
       case 'rating':
         list.sort((a, b) => b.rating.compareTo(a.rating));
@@ -222,11 +321,15 @@ class CatalogProvider extends ChangeNotifier {
       default:
         list.sort((a, b) => b.orderCount.compareTo(a.orderCount));
     }
-
-    return list;
   }
 
   List<Product> get filteredProducts {
+    if (_useServerSearch && _searchQuery.trim().isNotEmpty) {
+      var list = List<Product>.from(_searchProducts);
+      if (_vegOnly) list = list.where((p) => p.isVeg).toList();
+      return list;
+    }
+
     var list = List<Product>.from(_products);
 
     if (_selectedCategoryId != null) {
@@ -279,4 +382,10 @@ class CatalogProvider extends ChangeNotifier {
 
   List<Vendor> vendorsForCategory(String id) =>
       _vendors.where((v) => v.categories.contains(id)).toList();
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    super.dispose();
+  }
 }

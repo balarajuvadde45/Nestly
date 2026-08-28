@@ -115,8 +115,8 @@ class _BecomeSellerScreenState extends State<BecomeSellerScreen> {
                 const SizedBox(height: 8),
                 Text(
                   _applicationId != null
-                      ? 'Your application was stored in Nestly (ref: ${_applicationId!.substring(0, 8)}…).\nOur admin team will review it and contact you.'
-                      : 'Your application was stored. Our admin team will review it.',
+                      ? 'Application saved (ref: ${_applicationId!.substring(0, 8)}…). Prefer instant setup? Use Sell → Create business account while logged in as a buyer.'
+                      : 'Application saved. Or open Sell and create a business from your buyer login for instant access.',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                       color: AppColors.textSecondary, height: 1.4),
@@ -154,13 +154,13 @@ class _BecomeSellerScreenState extends State<BecomeSellerScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Built for women-led home businesses',
+                      'Built for home & small businesses worldwide',
                       style:
                           TextStyle(fontWeight: FontWeight.w800, fontSize: 20),
                     ),
                     SizedBox(height: 8),
                     Text(
-                      'Submit your application. Nestly admin will review it in the database and contact you to go live.',
+                      'Anyone can sell from home or their own shop. Logged-in buyers can open a business instantly under Sell.',
                       style: TextStyle(
                           color: AppColors.textSecondary, height: 1.4),
                     ),

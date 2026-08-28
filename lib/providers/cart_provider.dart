@@ -1,9 +1,14 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../core/constants/app_constants.dart';
 import '../models/cart_item.dart';
 import '../models/product.dart';
 import '../models/vendor.dart';
+import '../services/api_mappers.dart';
+
+const _kCartKey = 'nestly_cart_v1';
 
 class CartProvider extends ChangeNotifier {
   final _uuid = const Uuid();
@@ -12,6 +17,7 @@ class CartProvider extends ChangeNotifier {
   Vendor? _vendor;
   String? _couponCode;
   double _couponDiscount = 0;
+  bool _restored = false;
 
   List<CartItem> get items => List.unmodifiable(_items);
   String? get vendorId => _vendorId;
@@ -84,7 +90,7 @@ class CartProvider extends ChangeNotifier {
       selectedSize: size,
       specialInstructions: instructions,
     ));
-    notifyListeners();
+    _changed();
   }
 
   bool addItem(
@@ -128,7 +134,7 @@ class CartProvider extends ChangeNotifier {
         specialInstructions: instructions,
       ));
     }
-    notifyListeners();
+    _changed();
     return true;
   }
 
@@ -136,7 +142,7 @@ class CartProvider extends ChangeNotifier {
     final i = _items.indexWhere((e) => e.id == cartItemId);
     if (i < 0) return;
     _items[i] = _items[i].copyWith(quantity: _items[i].quantity + 1);
-    notifyListeners();
+    _changed();
   }
 
   void decrement(String cartItemId) {
@@ -153,7 +159,7 @@ class CartProvider extends ChangeNotifier {
     } else {
       _items[i] = _items[i].copyWith(quantity: _items[i].quantity - 1);
     }
-    notifyListeners();
+    _changed();
   }
 
   void setQuantity(String cartItemId, int qty) {
@@ -170,7 +176,7 @@ class CartProvider extends ChangeNotifier {
     } else {
       _items[i] = _items[i].copyWith(quantity: qty);
     }
-    notifyListeners();
+    _changed();
   }
 
   void removeItem(String cartItemId) {
@@ -181,7 +187,7 @@ class CartProvider extends ChangeNotifier {
       _couponCode = null;
       _couponDiscount = 0;
     }
-    notifyListeners();
+    _changed();
   }
 
   void clear() {
@@ -190,7 +196,7 @@ class CartProvider extends ChangeNotifier {
     _vendor = null;
     _couponCode = null;
     _couponDiscount = 0;
-    notifyListeners();
+    _changed();
   }
 
   String? applyCoupon(String code) {
@@ -202,18 +208,18 @@ class CartProvider extends ChangeNotifier {
       case 'HOMEFOODS20':
         _couponCode = 'NESTLY20';
         _couponDiscount = (itemTotal * 0.2).clamp(0, 100);
-        notifyListeners();
+        _changed();
         return null;
       case 'FLAT50':
         if (itemTotal < 199) return 'Minimum order ₹199 required';
         _couponCode = c;
         _couponDiscount = 50;
-        notifyListeners();
+        _changed();
         return null;
       case 'FIRST100':
         _couponCode = c;
         _couponDiscount = 100.clamp(0, itemTotal).toDouble();
-        notifyListeners();
+        _changed();
         return null;
       default:
         return 'Invalid coupon code';
@@ -223,6 +229,73 @@ class CartProvider extends ChangeNotifier {
   void removeCoupon() {
     _couponCode = null;
     _couponDiscount = 0;
+    _changed();
+  }
+
+  void _changed() {
     notifyListeners();
+    _persist();
+  }
+
+  Future<void> restore() async {
+    if (_restored) return;
+    _restored = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_kCartKey);
+      if (raw == null || raw.isEmpty) return;
+      final map = jsonDecode(raw) as Map<String, dynamic>;
+      final items = (map['items'] as List? ?? [])
+          .map((e) {
+            final m = Map<String, dynamic>.from(e as Map);
+            return CartItem(
+              id: m['id'] as String? ?? const Uuid().v4(),
+              product: productFromJson(
+                Map<String, dynamic>.from(m['product'] as Map),
+              ),
+              quantity: (m['quantity'] as num?)?.toInt() ?? 1,
+              selectedSize: m['selectedSize'] as String?,
+              specialInstructions: m['specialInstructions'] as String?,
+            );
+          })
+          .toList();
+      if (items.isEmpty) return;
+      _items
+        ..clear()
+        ..addAll(items);
+      _vendorId = map['vendorId'] as String?;
+      if (map['vendor'] is Map) {
+        _vendor = vendorFromJson(Map<String, dynamic>.from(map['vendor'] as Map));
+      }
+      _couponCode = map['couponCode'] as String?;
+      _couponDiscount = (map['couponDiscount'] as num?)?.toDouble() ?? 0;
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> _persist() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (_items.isEmpty) {
+        await prefs.remove(_kCartKey);
+        return;
+      }
+      final payload = {
+        'vendorId': _vendorId,
+        if (_vendor != null) 'vendor': vendorToJson(_vendor!),
+        'couponCode': _couponCode,
+        'couponDiscount': _couponDiscount,
+        'items': _items
+            .map((i) => {
+                  'id': i.id,
+                  'quantity': i.quantity,
+                  'selectedSize': i.selectedSize,
+                  'specialInstructions': i.specialInstructions,
+                  'product': productToJson(i.product),
+                })
+            .toList(),
+      };
+      await prefs.setString(_kCartKey, jsonEncode(payload));
+    } catch (_) {}
   }
 }

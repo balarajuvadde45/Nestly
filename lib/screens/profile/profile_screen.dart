@@ -139,24 +139,19 @@ class ProfileScreen extends StatelessWidget {
               () => context.go('/wisdom'),
             ),
             _tile(
-              Icons.dashboard_customize_outlined,
-              'Seller dashboard',
-              auth.isSeller
-                  ? 'Manage menu, orders & store'
-                  : 'Login as seller: amma@nestly.app',
+              Icons.storefront_rounded,
+              auth.hasBusiness ? 'Seller dashboard' : 'Become a seller',
+              auth.hasBusiness
+                  ? 'Switch to business dashboard'
+                  : 'Start a home business from this buyer account',
               () {
-                if (auth.isSeller) {
-                  context.push('/seller');
+                if (auth.hasBusiness || auth.isSeller) {
+                  auth.enterSellerMode();
+                  context.go('/seller');
                 } else {
-                  context.push('/login?seller=1');
+                  context.push('/sell');
                 }
               },
-            ),
-            _tile(
-              Icons.storefront_outlined,
-              'Become a seller',
-              'Register your home kitchen / business',
-              () => context.push('/become-seller'),
             ),
             _tile(
               Icons.local_offer_outlined,
@@ -194,9 +189,21 @@ class ProfileScreen extends StatelessWidget {
               () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                      content: Text('Support: help@nestly.app (demo)')),
+                      content: Text('Email  help@nestly.app  for support')),
                 );
               },
+            ),
+            _tile(
+              Icons.privacy_tip_outlined,
+              'Privacy policy',
+              'How we use your data',
+              () => context.push('/legal/privacy'),
+            ),
+            _tile(
+              Icons.gavel_outlined,
+              'Terms of service',
+              'Rules for using Nestly',
+              () => context.push('/legal/terms'),
             ),
             _tile(
               Icons.info_outline_rounded,
@@ -215,8 +222,9 @@ class ProfileScreen extends StatelessWidget {
             if (user != null) ...[
               const SizedBox(height: 8),
               OutlinedButton.icon(
-                onPressed: () {
-                  auth.logout();
+                onPressed: () async {
+                  await auth.logout();
+                  if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Logged out')),
                   );
@@ -303,78 +311,4 @@ class FavouritesScreen extends StatelessWidget {
   }
 }
 
-class AddressesScreen extends StatelessWidget {
-  const AddressesScreen({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
-    final pad = Responsive.contentPadding(context);
-    final addresses = auth.user?.addresses ?? [];
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Addresses')),
-      body: !auth.isLoggedIn
-          ? EmptyState(
-              icon: Icons.lock_outline,
-              title: 'Login required',
-              subtitle: 'Sign in to manage delivery addresses',
-              actionLabel: 'Login',
-              onAction: () => context.push('/login'),
-            )
-          : addresses.isEmpty
-          ? EmptyState(
-              icon: Icons.location_off_outlined,
-              title: 'No addresses yet',
-              subtitle: 'Addresses appear after you register or login',
-              actionLabel: 'Home',
-              onAction: () => context.go('/home'),
-            )
-          : ListView.separated(
-              padding: EdgeInsets.all(pad),
-              itemCount: addresses.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 10),
-              itemBuilder: (context, i) {
-                final a = addresses[i];
-                return Card(
-                  child: ListTile(
-                    leading: Icon(
-                      a.label.toLowerCase() == 'office'
-                          ? Icons.work_outline_rounded
-                          : Icons.home_outlined,
-                      color: AppColors.primary,
-                    ),
-                    title: Row(
-                      children: [
-                        Text(a.label,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.w700)),
-                        if (a.isDefault) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryLight,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Text('DEFAULT',
-                                style: TextStyle(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.primary)),
-                          ),
-                        ],
-                      ],
-                    ),
-                    subtitle: Text(
-                      '${a.fullAddress}\n${a.area}, ${a.city} - ${a.pincode}',
-                    ),
-                    isThreeLine: true,
-                  ),
-                );
-              },
-            ),
-    );
-  }
-}

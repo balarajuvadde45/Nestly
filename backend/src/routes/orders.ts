@@ -13,13 +13,15 @@ import {
   requireRole,
 } from '../middleware/auth';
 import { getIo } from '../socket';
+import { env } from '../lib/env';
 
 export const ordersRouter = Router();
 
 const placeSchema = z.object({
   vendorId: z.string(),
   addressId: z.string(),
-  paymentMethod: z.enum(['UPI', 'CARD', 'COD', 'WALLET']).default('COD'),
+  // Soft launch: Cash on Delivery only.
+  paymentMethod: z.enum(['COD']).default('COD'),
   couponCode: z.string().optional(),
   notes: z.string().optional(),
   items: z
@@ -118,8 +120,8 @@ ordersRouter.post(
           customerId: req.user!.sub,
           vendorId: vendor.id,
           addressId: address.id,
-          paymentMethod: body.paymentMethod as PaymentMethod,
-          paymentStatus: body.paymentMethod === 'COD' ? 'PENDING' : 'PENDING',
+          paymentMethod: PaymentMethod.COD,
+          paymentStatus: 'PENDING',
           itemTotal,
           deliveryFee,
           platformFee,
@@ -159,9 +161,11 @@ ordersRouter.post(
       }
       getIo()?.to(`order:${order.id}`).emit('order:updated', payload);
 
-      // Demo: auto-progress PLACED -> CONFIRMED after 8s
-      setTimeout(() => void autoProgress(order.id, OrderStatus.CONFIRMED), 8000);
-      setTimeout(() => void autoProgress(order.id, OrderStatus.PREPARING), 20000);
+      // Local/dev only — sellers confirm orders in production.
+      if (env.isDev) {
+        setTimeout(() => void autoProgress(order.id, OrderStatus.CONFIRMED), 8000);
+        setTimeout(() => void autoProgress(order.id, OrderStatus.PREPARING), 20000);
+      }
 
       res.status(201).json({ order: payload });
     } catch (e) {
@@ -181,7 +185,7 @@ async function autoProgress(orderId: string, status: OrderStatus) {
       return;
     }
     // Only advance forward
-    const order = [
+    const order: OrderStatus[] = [
       OrderStatus.PLACED,
       OrderStatus.CONFIRMED,
       OrderStatus.PREPARING,
@@ -264,7 +268,7 @@ ordersRouter.get('/', requireAuth, async (req: AuthedRequest, res, next) => {
 ordersRouter.get('/:id', requireAuth, async (req: AuthedRequest, res, next) => {
   try {
     const order = await prisma.order.findUnique({
-      where: { id: req.params.id },
+      where: { id: String(req.params.id) },
       include: {
         items: true,
         events: { orderBy: { createdAt: 'asc' } },
@@ -298,19 +302,18 @@ ordersRouter.post(
   async (req: AuthedRequest, res, next) => {
     try {
       const order = await prisma.order.findUnique({
-        where: { id: req.params.id },
+        where: { id: String(req.params.id) },
       });
       if (!order || order.customerId !== req.user!.sub) {
         res.status(404).json({ error: 'Order not found' });
         return;
       }
-      if (
-        [
-          OrderStatus.OUT_FOR_DELIVERY,
-          OrderStatus.DELIVERED,
-          OrderStatus.CANCELLED,
-        ].includes(order.status)
-      ) {
+      const terminalStatuses: OrderStatus[] = [
+        OrderStatus.OUT_FOR_DELIVERY,
+        OrderStatus.DELIVERED,
+        OrderStatus.CANCELLED,
+      ];
+      if (terminalStatuses.includes(order.status)) {
         res.status(400).json({ error: 'Order cannot be cancelled now' });
         return;
       }
@@ -348,7 +351,7 @@ ordersRouter.get(
   async (req: AuthedRequest, res, next) => {
     try {
       const order = await prisma.order.findUnique({
-        where: { id: req.params.id },
+        where: { id: String(req.params.id) },
         include: {
           vendor: true,
           address: true,

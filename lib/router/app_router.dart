@@ -9,14 +9,17 @@ import '../screens/hub/hub_screen.dart';
 import '../screens/orders/orders_screen.dart';
 import '../screens/product/product_screen.dart';
 import '../screens/profile/profile_screen.dart';
+import '../screens/profile/addresses_screen.dart';
+import '../screens/legal/legal_screens.dart';
 import '../screens/search/search_screen.dart';
 import '../screens/admin/admin_applications_screen.dart';
-import '../screens/seller/become_seller_screen.dart';
 import '../screens/seller/seller_dashboard_screen.dart';
+import '../screens/seller/seller_entry_screen.dart';
 import '../screens/seller/seller_onboard_screen.dart';
 import '../screens/seller/seller_orders_screen.dart';
 import '../screens/seller/seller_products_screen.dart';
 import '../screens/shell/main_shell.dart';
+import '../screens/shell/seller_shell.dart';
 import '../screens/splash/splash_screen.dart';
 import '../screens/tracking/live_tracking_screen.dart';
 import '../screens/vendor/vendor_screen.dart';
@@ -26,6 +29,7 @@ import '../screens/wisdom/wisdom_home_screen.dart';
 
 final GlobalKey<NavigatorState> _rootKey = GlobalKey<NavigatorState>();
 final GlobalKey<NavigatorState> _shellKey = GlobalKey<NavigatorState>();
+final GlobalKey<NavigatorState> _sellerShellKey = GlobalKey<NavigatorState>();
 
 GoRouter createAppRouter() {
   return GoRouter(
@@ -148,6 +152,7 @@ GoRouter createAppRouter() {
         path: '/login',
         builder: (context, state) => LoginScreen(
           sellerMode: state.uri.queryParameters['seller'] == '1',
+          nextPath: state.uri.queryParameters['next'],
         ),
       ),
       GoRoute(
@@ -159,49 +164,86 @@ GoRouter createAppRouter() {
         builder: (context, state) => const AddressesScreen(),
       ),
       GoRoute(
+        path: '/legal/privacy',
+        builder: (context, state) => const PrivacyPolicyScreen(),
+      ),
+      GoRoute(
+        path: '/legal/terms',
+        builder: (context, state) => const TermsOfServiceScreen(),
+      ),
+      // Buyer → Seller gateway (motivation + business setup)
+      GoRoute(
+        path: '/sell',
+        builder: (context, state) => const SellerEntryScreen(),
+      ),
+      GoRoute(
+        path: '/sell/setup',
+        builder: (context, state) => const SellerBusinessSetupScreen(),
+      ),
+      // Legacy application form (admin still sees SellerApplication)
+      GoRoute(
         path: '/become-seller',
-        builder: (context, state) => const BecomeSellerScreen(),
+        redirect: (context, state) => '/sell',
       ),
       GoRoute(
         path: '/admin/applications',
         builder: (context, state) => const AdminApplicationsScreen(),
       ),
-      // Seller dashboard (web + mobile)
-      GoRoute(
-        path: '/seller',
-        builder: (context, state) => const SellerDashboardScreen(),
-      ),
-      GoRoute(
-        path: '/seller/onboard',
-        builder: (context, state) => const SellerOnboardScreen(),
-      ),
-      GoRoute(
-        path: '/seller/products',
-        builder: (context, state) => const SellerProductsScreen(),
-      ),
-      GoRoute(
-        path: '/seller/products/new',
-        builder: (context, state) => const SellerProductFormScreen(),
-      ),
-      GoRoute(
-        path: '/seller/products/:id/edit',
-        builder: (context, state) => SellerProductFormScreen(
-          productId: state.pathParameters['id'],
-        ),
-      ),
-      GoRoute(
-        path: '/seller/orders',
-        builder: (context, state) => const SellerOrdersScreen(),
-      ),
-      GoRoute(
-        path: '/seller/orders/:id',
-        builder: (context, state) => SellerOrderDetailScreen(
-          orderId: state.pathParameters['id']!,
-        ),
-      ),
-      GoRoute(
-        path: '/seller/store',
-        builder: (context, state) => const SellerStoreSettingsScreen(),
+      // Seller dashboard — separate shell from buyer MainShell
+      ShellRoute(
+        navigatorKey: _sellerShellKey,
+        builder: (context, state, child) {
+          return SellerShell(
+            location: state.uri.toString(),
+            child: child,
+          );
+        },
+        routes: [
+          GoRoute(
+            path: '/seller',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: SellerDashboardScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/seller/onboard',
+            builder: (context, state) => const SellerOnboardScreen(),
+          ),
+          GoRoute(
+            path: '/seller/products',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: SellerProductsScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/seller/products/new',
+            builder: (context, state) => const SellerProductFormScreen(),
+          ),
+          GoRoute(
+            path: '/seller/products/:id/edit',
+            builder: (context, state) => SellerProductFormScreen(
+              productId: state.pathParameters['id'],
+            ),
+          ),
+          GoRoute(
+            path: '/seller/orders',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: SellerOrdersScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/seller/orders/:id',
+            builder: (context, state) => SellerOrderDetailScreen(
+              orderId: state.pathParameters['id']!,
+            ),
+          ),
+          GoRoute(
+            path: '/seller/store',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: SellerStoreSettingsScreen(),
+            ),
+          ),
+        ],
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

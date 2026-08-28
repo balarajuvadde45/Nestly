@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
+import { logger } from '../lib/logger';
 
 export function errorHandler(
   err: unknown,
@@ -16,10 +17,16 @@ export function errorHandler(
   }
   if (err instanceof Error) {
     const status = (err as Error & { status?: number }).status ?? 500;
-    console.error('[error]', err.message);
+    // 5xx are real faults (log full stack); 4xx are client errors (log lightly).
+    if (status >= 500) {
+      logger.error({ err }, err.message);
+    } else {
+      logger.warn({ msg: err.message }, 'client error');
+    }
     res.status(status).json({ error: err.message || 'Internal server error' });
     return;
   }
+  logger.error({ err }, 'Unknown non-Error thrown');
   res.status(500).json({ error: 'Internal server error' });
 }
 

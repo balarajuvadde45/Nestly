@@ -46,7 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
             floating: true,
             snap: true,
             pinned: wide,
-            backgroundColor: Colors.white,
+            backgroundColor: AppColors.surface,
             elevation: 0,
             toolbarHeight: 64,
             titleSpacing: pad,
@@ -121,14 +121,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 14),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: AppColors.surface,
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(color: AppColors.border),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.04),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
+                              color: AppColors.primary.withValues(alpha: 0.06),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
                             ),
                           ],
                         ),
@@ -209,9 +209,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               const SizedBox(height: 14),
                               ElevatedButton(
-                                onPressed: () =>
-                                    context.push('/login?seller=1'),
-                                child: const Text('Open seller login'),
+                                onPressed: () => context.push('/sell'),
+                                child: const Text('Become a seller'),
                               ),
                             ],
                           ),
@@ -481,7 +480,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                                 const SizedBox(height: 14),
                                 ElevatedButton(
-                                  onPressed: () => context.push('/become-seller'),
+                                  onPressed: () => context.push('/sell'),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: AppColors.secondary,
                                   ),

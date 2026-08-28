@@ -9,7 +9,7 @@ Marketplace for **home cooks**, **cloud kitchens**, **pickles & spices**, **home
 - **Hubs** — Food · Pickles · Clothes (Boutiques) · Wisdom Circle
 - **Home feed** — banners, categories, popular sellers, bestsellers
 - **Seller storefronts** — menu/catalog, offers, veg filter
-- **Cart & checkout** — coupons, bill, addresses, payments (demo)
+- **Cart & checkout** — coupons, bill, addresses, **Cash on Delivery**
 - **Orders** — status timeline, live map tracking
 - **Seller dashboard** — products, orders, store settings
 - **Wisdom Circle** — elders’ tips, remedies, Q&A (senior-friendly UI)
@@ -55,4 +55,7 @@ backend/       # Nestly API (Express + Prisma + Socket.IO)
 
 - App name: **Nestly**
 - Tagline: *Food · Pickles · Clothes · Wisdom — from home to home*
-- Primary: `#E23744`
+- Primary: `#7C6AF7` (light lavender + white)
+- Android application id: `in.nestly.app`
+
+**Launch defaults:** soft launch · COD only · Google login hidden · Render + Cloudflare Pages. See **[DEPLOY.md](./DEPLOY.md)**.

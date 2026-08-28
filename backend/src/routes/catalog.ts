@@ -9,6 +9,69 @@ import {
 
 export const catalogRouter = Router();
 
+/**
+ * Unified search — products + vendors in one round-trip.
+ * Target: < 1s with indexes + limited take.
+ */
+catalogRouter.get('/search', async (req, res, next) => {
+  const started = Date.now();
+  try {
+    const q = String(req.query.q || '').trim();
+    const limit = Math.min(Number(req.query.limit) || 24, 48);
+    const vegOnly = req.query.vegOnly === 'true';
+
+    if (!q || q.length < 1) {
+      res.json({
+        query: q,
+        products: [],
+        vendors: [],
+        tookMs: Date.now() - started,
+      });
+      return;
+    }
+
+    const [products, vendors] = await Promise.all([
+      prisma.product.findMany({
+        where: {
+          isAvailable: true,
+          ...(vegOnly ? { isVeg: true } : {}),
+          OR: [
+            { name: { contains: q, mode: 'insensitive' } },
+            { description: { contains: q, mode: 'insensitive' } },
+            { tagsJson: { contains: q, mode: 'insensitive' } },
+          ],
+        },
+        orderBy: [{ reviewCount: 'desc' }, { rating: 'desc' }],
+        take: limit,
+      }),
+      prisma.vendor.findMany({
+        where: {
+          isApproved: true,
+          ...(vegOnly ? { isPureVeg: true } : {}),
+          OR: [
+            { name: { contains: q, mode: 'insensitive' } },
+            { tagline: { contains: q, mode: 'insensitive' } },
+            { area: { contains: q, mode: 'insensitive' } },
+            { tagsJson: { contains: q, mode: 'insensitive' } },
+            { description: { contains: q, mode: 'insensitive' } },
+          ],
+        },
+        orderBy: [{ orderCount: 'desc' }, { rating: 'desc' }],
+        take: limit,
+      }),
+    ]);
+
+    res.json({
+      query: q,
+      products: products.map(serializeProduct),
+      vendors: vendors.map(serializeVendor),
+      tookMs: Date.now() - started,
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
 catalogRouter.get('/categories', async (_req, res, next) => {
   try {
     const categories = await prisma.shopCategory.findMany({
@@ -42,45 +105,39 @@ catalogRouter.get('/vendors', async (req, res, next) => {
       city,
     } = req.query as Record<string, string | undefined>;
 
+    const orderBy =
+      sortBy === 'rating'
+        ? { rating: 'desc' as const }
+        : sortBy === 'delivery'
+          ? { deliveryTimeMins: 'asc' as const }
+          : sortBy === 'distance'
+            ? { distanceKm: 'asc' as const }
+            : { orderCount: 'desc' as const };
+
     const vendors = await prisma.vendor.findMany({
       where: {
         isApproved: true,
         ...(city ? { city } : {}),
         ...(vegOnly === 'true' ? { isPureVeg: true } : {}),
+        ...(q
+          ? {
+              OR: [
+                { name: { contains: q, mode: 'insensitive' } },
+                { tagline: { contains: q, mode: 'insensitive' } },
+                { area: { contains: q, mode: 'insensitive' } },
+                { tagsJson: { contains: q, mode: 'insensitive' } },
+              ],
+            }
+          : {}),
+        ...(categoryId
+          ? { categoriesJson: { contains: categoryId } }
+          : {}),
       },
+      orderBy,
+      take: 60,
     });
 
-    let list = vendors.map(serializeVendor);
-
-    if (categoryId) {
-      list = list.filter((v) => v.categories.includes(categoryId));
-    }
-    if (q) {
-      const query = q.toLowerCase();
-      list = list.filter(
-        (v) =>
-          v.name.toLowerCase().includes(query) ||
-          v.tagline.toLowerCase().includes(query) ||
-          v.tags.some((t) => t.toLowerCase().includes(query)) ||
-          v.area.toLowerCase().includes(query),
-      );
-    }
-
-    switch (sortBy) {
-      case 'rating':
-        list.sort((a, b) => b.rating - a.rating);
-        break;
-      case 'delivery':
-        list.sort((a, b) => a.deliveryTimeMins - b.deliveryTimeMins);
-        break;
-      case 'distance':
-        list.sort((a, b) => a.distanceKm - b.distanceKm);
-        break;
-      default:
-        list.sort((a, b) => b.orderCount - a.orderCount);
-    }
-
-    res.json({ vendors: list });
+    res.json({ vendors: vendors.map(serializeVendor) });
   } catch (e) {
     next(e);
   }
@@ -128,13 +185,15 @@ catalogRouter.get('/products', async (req, res, next) => {
         ...(q
           ? {
               OR: [
-                { name: { contains: q } },
-                { description: { contains: q } },
+                { name: { contains: q, mode: 'insensitive' } },
+                { description: { contains: q, mode: 'insensitive' } },
+                { tagsJson: { contains: q, mode: 'insensitive' } },
               ],
             }
           : {}),
       },
       orderBy: { reviewCount: 'desc' },
+      take: q ? 48 : 120,
     });
     res.json({ products: products.map(serializeProduct) });
   } catch (e) {

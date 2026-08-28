@@ -130,6 +130,88 @@ BannerItem bannerFromJson(Map<String, dynamic> j) {
   );
 }
 
+String vendorTypeToApi(VendorType t) {
+  switch (t) {
+    case VendorType.cloudKitchen:
+      return 'CLOUD_KITCHEN';
+    case VendorType.homeBusiness:
+      return 'HOME_BUSINESS';
+    case VendorType.boutique:
+      return 'BOUTIQUE';
+    case VendorType.homeCook:
+      return 'HOME_COOK';
+  }
+}
+
+String productTypeToApi(ProductType t) {
+  switch (t) {
+    case ProductType.pickle:
+      return 'PICKLE';
+    case ProductType.clothes:
+      return 'CLOTHES';
+    case ProductType.snack:
+      return 'SNACK';
+    case ProductType.sweet:
+      return 'SWEET';
+    case ProductType.grocery:
+      return 'GROCERY';
+    case ProductType.other:
+      return 'OTHER';
+    case ProductType.food:
+      return 'FOOD';
+  }
+}
+
+Map<String, dynamic> vendorToJson(Vendor v) {
+  return {
+    'id': v.id,
+    'name': v.name,
+    'tagline': v.tagline,
+    'description': v.description,
+    'imageUrl': v.imageUrl,
+    'coverUrl': v.coverUrl,
+    'type': vendorTypeToApi(v.type),
+    'rating': v.rating,
+    'reviewCount': v.reviewCount,
+    'deliveryTimeMins': v.deliveryTimeMins,
+    'distanceKm': v.distanceKm,
+    'area': v.area,
+    'city': v.city,
+    'categories': v.categories,
+    'tags': v.tags,
+    'isOpen': v.isOpen,
+    'isPureVeg': v.isPureVeg,
+    'freeDelivery': v.freeDelivery,
+    'minOrder': v.minOrder,
+    'offerText': v.offerText,
+    'orderCount': v.orderCount,
+    'lat': v.lat,
+    'lng': v.lng,
+    'ownerId': v.ownerId,
+  };
+}
+
+Map<String, dynamic> productToJson(Product p) {
+  return {
+    'id': p.id,
+    'vendorId': p.vendorId,
+    'name': p.name,
+    'description': p.description,
+    'price': p.price,
+    'mrp': p.mrp,
+    'imageUrl': p.imageUrl,
+    'type': productTypeToApi(p.type),
+    'isVeg': p.isVeg,
+    'isAvailable': p.isAvailable,
+    'rating': p.rating,
+    'reviewCount': p.reviewCount,
+    'tags': p.tags,
+    'categoryId': p.categoryId,
+    'prepTimeMins': p.prepTimeMins,
+    'sizes': p.sizes,
+  };
+}
+
 Vendor vendorFromJson(Map<String, dynamic> j) {
   return Vendor(
     id: j['id'] as String,

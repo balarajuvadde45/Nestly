@@ -45,7 +45,7 @@ class _NestlyAppState extends State<NestlyApp> {
         ChangeNotifierProvider(
           create: (_) => CatalogProvider(_api)..loadHome(),
         ),
-        ChangeNotifierProvider(create: (_) => CartProvider()),
+        ChangeNotifierProvider(create: (_) => CartProvider()..restore()),
         ChangeNotifierProvider(
           create: (_) => AuthProvider(_api, _socket)..init(),
         ),

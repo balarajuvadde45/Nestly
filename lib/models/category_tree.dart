@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 /// Top-level marketplace hubs shown in header (web) and home (mobile).
-/// Research-backed for women home businesses: food, pickles/spices,
-/// clothing/boutiques, plus Wisdom Circle for elders.
+/// Marketplace hubs for home & small businesses worldwide:
+/// food, pickles/spices, clothing/boutiques, plus Wisdom Circle.
 class HubCategory {
   final String id;
   final String name;
@@ -56,7 +56,7 @@ class CategoryTree {
       name: 'Food',
       shortLabel: 'Food',
       description:
-          'Home kitchens, tiffin, cloud kitchens & homemade meals from women cooks',
+          'Home kitchens, tiffin, cloud kitchens & homemade meals from local cooks',
       icon: Icons.restaurant_menu_rounded,
       color: Color(0xFFFFE0B2),
       imageUrl:
@@ -145,7 +145,7 @@ class CategoryTree {
       name: 'Clothes',
       shortLabel: 'Clothes',
       description:
-          'Home boutiques, ethnic wear, handloom & stitched fashion by women entrepreneurs',
+          'Home boutiques, ethnic wear, handloom & stitched fashion from local makers',
       icon: Icons.checkroom_rounded,
       color: Color(0xFFE1BEE7),
       imageUrl:

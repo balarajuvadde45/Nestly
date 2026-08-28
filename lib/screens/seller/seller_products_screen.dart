@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/responsive.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/catalog_provider.dart';
 import '../../providers/seller_provider.dart';
 import '../../widgets/app_network_image.dart';
@@ -20,8 +21,10 @@ class _SellerProductsScreenState extends State<SellerProductsScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<SellerProvider>().loadProducts();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await context.read<AuthProvider>().refreshSellerToken();
+      if (!mounted) return;
+      await context.read<SellerProvider>().loadProducts();
     });
   }
 
@@ -305,22 +308,31 @@ class _SellerProductFormScreenState extends State<SellerProductFormScreen> {
       'isVeg': _isVeg,
       'type': 'FOOD',
     };
+    // Refresh seller token before API write (avoids Forbidden)
+    await context.read<AuthProvider>().refreshSellerToken();
+    if (!mounted) return;
+
     final ok = isEdit
         ? await seller.updateProduct(widget.productId!, body)
         : await seller.createProduct(body);
     if (!mounted) return;
     setState(() => _saving = false);
     if (ok) {
-      // Refresh customer catalog so new products appear in UAT
-      // ignore: unawaited_futures
       context.read<CatalogProvider>().loadHome();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(isEdit ? 'Product updated' : 'Product created')),
       );
       context.pop();
     } else {
+      final err = seller.error ?? 'Failed';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(seller.error ?? 'Failed')),
+        SnackBar(
+          content: Text(
+            err.contains('Forbidden')
+                ? 'Session outdated. Go to Sell → Open Seller Dashboard, then try again.'
+                : err,
+          ),
+        ),
       );
     }
   }
