@@ -5,7 +5,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/utils/responsive.dart';
 import '../../providers/auth_provider.dart';
 
-/// Motivation + gateway from Buyer app → Seller surface.
+/// Motivation + gateway from Buyer app to Seller surface.
 class SellerEntryScreen extends StatelessWidget {
   const SellerEntryScreen({super.key});
 
@@ -39,7 +39,11 @@ class SellerEntryScreen extends StatelessWidget {
                 gradient: const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [Color(0xFFFFE0B2), Color(0xFFFFCC80), Color(0xFFFFAB40)],
+                  colors: [
+                    Color(0xFFFFE0B2),
+                    Color(0xFFFFCC80),
+                    Color(0xFFFFAB40),
+                  ],
                 ),
                 borderRadius: BorderRadius.circular(24),
               ),
@@ -52,12 +56,15 @@ class SellerEntryScreen extends StatelessWidget {
                       color: Colors.white.withValues(alpha: 0.9),
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: const Icon(Icons.storefront_rounded,
-                        size: 36, color: AppColors.secondary),
+                    child: const Icon(
+                      Icons.storefront_rounded,
+                      size: 36,
+                      color: AppColors.secondary,
+                    ),
                   ),
                   const SizedBox(height: 18),
                   const Text(
-                    'Start your home business today',
+                    'Start selling from your place',
                     style: TextStyle(
                       fontWeight: FontWeight.w900,
                       fontSize: 26,
@@ -67,7 +74,7 @@ class SellerEntryScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   const Text(
-                    'Anyone can sell from home or their own shop — food, pickles, fashion, crafts, and more. Nestly gives you a free storefront, orders, and customers nearby. Built for home businesses worldwide.',
+                    'Set up your shop, kitchen, boutique, workshop, or warehouse for food, pickles, fashion, crafts, FMCG wholesale, and more. Nestly gives you a storefront, orders, and nearby customers.',
                     style: TextStyle(
                       fontSize: 15,
                       height: 1.45,
@@ -84,9 +91,9 @@ class SellerEntryScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             _reason(
-              Icons.home_work_outlined,
-              'Work from home',
-              'No shop rent. List products from your kitchen or boutique table.',
+              Icons.store_mall_directory_outlined,
+              'Sell from your business place',
+              'List products from a kitchen, shop, boutique, workshop, or warehouse.',
             ),
             _reason(
               Icons.groups_outlined,
@@ -96,7 +103,7 @@ class SellerEntryScreen extends StatelessWidget {
             _reason(
               Icons.dashboard_customize_outlined,
               'Your own seller dashboard',
-              'Separate seller UI — products, orders, and store tools. Buyer shopping stays clean.',
+              'Separate seller UI for products, orders, and store tools. Buyer shopping stays clean.',
             ),
             _reason(
               Icons.link_rounded,
@@ -116,7 +123,9 @@ class SellerEntryScreen extends StatelessWidget {
                   minimumSize: const Size.fromHeight(52),
                   backgroundColor: AppColors.secondary,
                   textStyle: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w700),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
               const SizedBox(height: 10),
@@ -146,7 +155,9 @@ class SellerEntryScreen extends StatelessWidget {
                   minimumSize: const Size.fromHeight(52),
                   backgroundColor: AppColors.secondary,
                   textStyle: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w700),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
               const SizedBox(height: 10),
@@ -185,7 +196,10 @@ class SellerEntryScreen extends StatelessWidget {
             backgroundColor: AppColors.secondaryLight,
             child: Icon(icon, color: AppColors.secondary),
           ),
-          title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+          title: Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
           subtitle: Text(body, style: const TextStyle(height: 1.35)),
         ),
       ),
@@ -209,13 +223,34 @@ class _SellerBusinessSetupScreenState extends State<SellerBusinessSetupScreen> {
   final _desc = TextEditingController();
   final _area = TextEditingController();
   final _city = TextEditingController(text: 'Hyderabad');
-  String _type = 'HOME_COOK';
+  final _businessAddress = TextEditingController();
+  final _pincode = TextEditingController();
+  final _gstin = TextEditingController();
+  final _pan = TextEditingController();
+  final _fssai = TextEditingController();
+  String _type = 'PICKLES_AND_PACKAGED_FOOD';
+  String _premisesType = 'BUSINESS_PLACE';
+  bool _gstInvoiceAvailable = false;
+  bool _acceptsWholesale = false;
 
   static const _types = {
-    'HOME_COOK': 'Home Kitchen / Food',
+    'PICKLES_AND_PACKAGED_FOOD': 'Pickles / packaged food',
+    'SWEETS_SNACKS': 'Sweets / snacks',
+    'FOOD_OUTLET': 'Food outlet',
     'CLOUD_KITCHEN': 'Cloud Kitchen',
-    'HOME_BUSINESS': 'Pickles / Bakery / General',
-    'BOUTIQUE': 'Boutique / Clothes',
+    'HOME_COOK': 'Home Kitchen / Food',
+    'FMCG_DISTRIBUTOR': 'FMCG distributor',
+    'BOUTIQUE': 'Boutique / fashion',
+    'HANDMADE_PRODUCTS': 'Handmade products',
+    'HOME_BUSINESS': 'General local business',
+  };
+
+  static const _premisesTypes = {
+    'BUSINESS_PLACE': 'Business place',
+    'SHOP': 'Shop',
+    'CLOUD_KITCHEN': 'Cloud kitchen',
+    'WAREHOUSE': 'Warehouse',
+    'HOME_KITCHEN': 'Home kitchen',
   };
 
   @override
@@ -225,6 +260,11 @@ class _SellerBusinessSetupScreenState extends State<SellerBusinessSetupScreen> {
     _desc.dispose();
     _area.dispose();
     _city.dispose();
+    _businessAddress.dispose();
+    _pincode.dispose();
+    _gstin.dispose();
+    _pan.dispose();
+    _fssai.dispose();
     super.dispose();
   }
 
@@ -302,10 +342,28 @@ class _SellerBusinessSetupScreenState extends State<SellerBusinessSetupScreen> {
                 initialValue: _type,
                 decoration: const InputDecoration(labelText: 'Business type *'),
                 items: _types.entries
-                    .map((e) =>
-                        DropdownMenuItem(value: e.key, child: Text(e.value)))
+                    .map(
+                      (e) =>
+                          DropdownMenuItem(value: e.key, child: Text(e.value)),
+                    )
                     .toList(),
                 onChanged: (v) => setState(() => _type = v ?? _type),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: _premisesType,
+                decoration: const InputDecoration(
+                  labelText: 'Premises type *',
+                  prefixIcon: Icon(Icons.business_outlined),
+                ),
+                items: _premisesTypes.entries
+                    .map(
+                      (e) =>
+                          DropdownMenuItem(value: e.key, child: Text(e.value)),
+                    )
+                    .toList(),
+                onChanged: (v) =>
+                    setState(() => _premisesType = v ?? _premisesType),
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -322,10 +380,61 @@ class _SellerBusinessSetupScreenState extends State<SellerBusinessSetupScreen> {
                 controller: _city,
                 decoration: const InputDecoration(labelText: 'City *'),
               ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _businessAddress,
+                decoration: const InputDecoration(
+                  labelText: 'Business address (optional)',
+                  prefixIcon: Icon(Icons.location_on_outlined),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _pincode,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Pincode'),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _fssai,
+                decoration: const InputDecoration(labelText: 'FSSAI license'),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _gstin,
+                      decoration: const InputDecoration(labelText: 'GSTIN'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _pan,
+                      decoration: const InputDecoration(labelText: 'PAN'),
+                    ),
+                  ),
+                ],
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('GST invoice available'),
+                value: _gstInvoiceAvailable,
+                onChanged: (v) => setState(() => _gstInvoiceAvailable = v),
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Accept wholesale orders'),
+                value: _acceptsWholesale,
+                onChanged: (v) => setState(() => _acceptsWholesale = v),
+              ),
               if (auth.error != null) ...[
                 const SizedBox(height: 12),
-                Text(auth.error!,
-                    style: const TextStyle(color: AppColors.error)),
+                Text(
+                  auth.error!,
+                  style: const TextStyle(color: AppColors.error),
+                ),
               ],
               const SizedBox(height: 24),
               ElevatedButton(
@@ -346,13 +455,32 @@ class _SellerBusinessSetupScreenState extends State<SellerBusinessSetupScreen> {
                           description: _desc.text.trim().isEmpty
                               ? null
                               : _desc.text.trim(),
+                          businessAddress: _businessAddress.text.trim().isEmpty
+                              ? null
+                              : _businessAddress.text.trim(),
+                          pincode: _pincode.text.trim().isEmpty
+                              ? null
+                              : _pincode.text.trim(),
+                          premisesType: _premisesType,
+                          gstin: _gstin.text.trim().isEmpty
+                              ? null
+                              : _gstin.text.trim(),
+                          pan: _pan.text.trim().isEmpty
+                              ? null
+                              : _pan.text.trim(),
+                          fssaiLicense: _fssai.text.trim().isEmpty
+                              ? null
+                              : _fssai.text.trim(),
+                          gstInvoiceAvailable: _gstInvoiceAvailable,
+                          acceptsWholesale: _acceptsWholesale,
                         );
                         if (!context.mounted) return;
                         if (ok) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text(
-                                  'Business created! Welcome to Seller Dashboard.'),
+                                'Business created! Welcome to Seller Dashboard.',
+                              ),
                             ),
                           );
                           context.go('/seller');
@@ -367,7 +495,9 @@ class _SellerBusinessSetupScreenState extends State<SellerBusinessSetupScreen> {
                         width: 22,
                         height: 22,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
                     : const Text('Create business & open dashboard'),
               ),

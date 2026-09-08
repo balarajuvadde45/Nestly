@@ -1,7 +1,11 @@
-// Hermetic environment for tests. Set BEFORE app/env modules are imported so
-// env.ts validation passes without a real backend/.env (e.g. in CI).
 process.env.NODE_ENV = 'test';
-process.env.JWT_SECRET = process.env.JWT_SECRET ?? 'test-secret-not-for-production';
-process.env.DATABASE_URL =
-  process.env.DATABASE_URL ??
-  'postgresql://test:test@localhost:5432/nestly_test?schema=public';
+process.env.JWT_SECRET = 'isolated-test-signing-key-not-for-release';
+process.env.TWILIO_ACCOUNT_SID = '';
+process.env.TWILIO_AUTH_TOKEN = '';
+process.env.TWILIO_VERIFY_SERVICE_SID = '';
+process.env.REDIS_URL = '';
+const testUrl = process.env.TEST_DATABASE_URL;
+if (testUrl && new URL(testUrl).pathname !== '/nestly_test') {
+  throw new Error('TEST_DATABASE_URL must target a dedicated nestly_test database');
+}
+process.env.DATABASE_URL = testUrl ?? 'postgresql://test:test@127.0.0.1:55439/nestly_test';

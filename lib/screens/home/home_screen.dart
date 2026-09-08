@@ -55,8 +55,11 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.location_on_rounded,
-                        color: AppColors.primary, size: 20),
+                    const Icon(
+                      Icons.location_on_rounded,
+                      color: AppColors.primary,
+                      size: 20,
+                    ),
                     const SizedBox(width: 4),
                     Flexible(
                       child: Text(
@@ -104,7 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Mobile hub chips: Food · Pickles · Clothes · Wisdom
+                  // Mobile hub chips: Food · Pickles · Clothes
                   if (!wide) ...[
                     const SizedBox(height: 8),
                     const MarketplaceHeader(),
@@ -119,7 +122,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       borderRadius: BorderRadius.circular(14),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 14),
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.surface,
                           borderRadius: BorderRadius.circular(14),
@@ -134,32 +139,36 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         child: const Row(
                           children: [
-                            Icon(Icons.search_rounded,
-                                color: AppColors.textHint),
+                            Icon(
+                              Icons.search_rounded,
+                              color: AppColors.textHint,
+                            ),
                             SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                'Search food, pickles, boutiques, wisdom tips…',
+                                'Search food, pickles, boutiques, FMCG...',
                                 style: TextStyle(
                                   color: AppColors.textHint,
                                   fontSize: 14,
                                 ),
                               ),
                             ),
-                            Icon(Icons.mic_none_rounded,
-                                color: AppColors.primary),
+                            Icon(
+                              Icons.mic_none_rounded,
+                              color: AppColors.primary,
+                            ),
                           ],
                         ),
                       ),
                     ),
                   ),
 
-                  // Shop by world: Food / Pickles / Clothes / Wisdom
+                  // Shop by world: Food / Pickles / Clothes
                   const SizedBox(height: 8),
                   const HubShowcase(),
                   const SizedBox(height: 20),
 
-                  // API / empty catalog status for UAT
+                  // Catalog status
                   if (catalog.loading)
                     const Padding(
                       padding: EdgeInsets.all(24),
@@ -173,8 +182,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: ListTile(
                           leading: const Icon(Icons.cloud_off_outlined),
                           title: const Text('Cannot load live catalog'),
-                          subtitle: Text(catalog.error!,
-                              maxLines: 2, overflow: TextOverflow.ellipsis),
+                          subtitle: Text(
+                            catalog.error!,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                           trailing: TextButton(
                             onPressed: () => catalog.loadHome(),
                             child: const Text('Retry'),
@@ -190,13 +202,18 @@ class _HomeScreenState extends State<HomeScreen> {
                           padding: const EdgeInsets.all(20),
                           child: Column(
                             children: [
-                              const Icon(Icons.storefront_outlined,
-                                  size: 40, color: AppColors.secondary),
+                              const Icon(
+                                Icons.storefront_outlined,
+                                size: 40,
+                                color: AppColors.secondary,
+                              ),
                               const SizedBox(height: 12),
                               const Text(
-                                'No sellers yet — perfect for UAT',
+                                'No sellers available yet',
                                 style: TextStyle(
-                                    fontWeight: FontWeight.w800, fontSize: 16),
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 16,
+                                ),
                                 textAlign: TextAlign.center,
                               ),
                               const SizedBox(height: 8),
@@ -204,8 +221,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                 'Register as a seller, create your storefront, and add products. They will appear here for customers.',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                    color: AppColors.textSecondary,
-                                    height: 1.4),
+                                  color: AppColors.textSecondary,
+                                  height: 1.4,
+                                ),
                               ),
                               const SizedBox(height: 14),
                               ElevatedButton(
@@ -220,105 +238,118 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   // Banners
                   if (catalog.banners.isNotEmpty)
-                  SizedBox(
-                    height: wide ? 220 : 160,
-                    child: PageView.builder(
-                      controller: _bannerController,
-                      itemCount: catalog.banners.length,
-                      onPageChanged: (i) => setState(() => _bannerIndex = i),
-                      itemBuilder: (context, i) {
-                        final b = catalog.banners[i];
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 8),
-                          child: InkWell(
-                            onTap: () {
-                              if (b.categoryId != null) {
-                                context.push('/category/${b.categoryId}');
-                              } else {
-                                context.go('/search');
-                              }
-                            },
-                            borderRadius: BorderRadius.circular(16),
-                            child: ClipRRect(
+                    SizedBox(
+                      height: wide ? 220 : 160,
+                      child: PageView.builder(
+                        controller: _bannerController,
+                        itemCount: catalog.banners.length,
+                        onPageChanged: (i) => setState(() => _bannerIndex = i),
+                        itemBuilder: (context, i) {
+                          final b = catalog.banners[i];
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 8,
+                            ),
+                            child: InkWell(
+                              onTap: () {
+                                if (b.categoryId != null) {
+                                  context.push('/category/${b.categoryId}');
+                                } else {
+                                  context.go('/search');
+                                }
+                              },
                               borderRadius: BorderRadius.circular(16),
-                              child: Stack(
-                                fit: StackFit.expand,
-                                children: [
-                                  AppNetworkImage(
-                                    url: b.imageUrl,
-                                    placeholderIcon: Icons.local_offer_rounded,
-                                  ),
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        begin: Alignment.centerLeft,
-                                        end: Alignment.centerRight,
-                                        colors: [
-                                          Colors.black.withValues(alpha: 0.7),
-                                          Colors.black.withValues(alpha: 0.15),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    AppNetworkImage(
+                                      url: b.imageUrl,
+                                      placeholderIcon:
+                                          Icons.local_offer_rounded,
+                                    ),
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          begin: Alignment.centerLeft,
+                                          end: Alignment.centerRight,
+                                          colors: [
+                                            Colors.black.withValues(alpha: 0.7),
+                                            Colors.black.withValues(
+                                              alpha: 0.15,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.all(20),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            b.title,
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: wide ? 26 : 20,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            b.subtitle,
+                                            style: TextStyle(
+                                              color: Colors.white.withValues(
+                                                alpha: 0.9,
+                                              ),
+                                              fontSize: wide ? 15 : 13,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 12),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 6,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.primary,
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                            ),
+                                            child: const Text(
+                                              'Order now',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ),
                                         ],
                                       ),
                                     ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.all(20),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          b.title,
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: wide ? 26 : 20,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          b.subtitle,
-                                          style: TextStyle(
-                                            color: Colors.white
-                                                .withValues(alpha: 0.9),
-                                            fontSize: wide ? 15 : 13,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 12),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 12, vertical: 6),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.primary,
-                                            borderRadius:
-                                                BorderRadius.circular(20),
-                                          ),
-                                          child: const Text(
-                                            'Order Now →',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
-                  ),
                   if (catalog.banners.isNotEmpty)
                     Center(
                       child: AnimatedSmoothIndicator(
                         activeIndex: _bannerIndex.clamp(
-                            0, catalog.banners.isEmpty ? 0 : catalog.banners.length - 1),
+                          0,
+                          catalog.banners.isEmpty
+                              ? 0
+                              : catalog.banners.length - 1,
+                        ),
                         count: catalog.banners.length,
                         effect: const WormEffect(
                           dotHeight: 7,
@@ -331,115 +362,125 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   // Categories
                   if (catalog.categories.isNotEmpty) ...[
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(pad, 24, pad, 0),
-                    child: SectionHeader(
-                      title: 'What are you craving?',
-                      subtitle: 'Home kitchens, pickles, fashion & more',
-                      actionLabel: 'See all',
-                      onAction: () => context.push('/categories'),
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(pad, 24, pad, 0),
+                      child: SectionHeader(
+                        title: 'What do you need?',
+                        subtitle: 'Food, pickles, fashion, wholesale and more',
+                        actionLabel: 'See all',
+                        onAction: () => context.push('/categories'),
+                      ),
                     ),
-                  ),
-                  SizedBox(
-                    height: 110,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      padding: EdgeInsets.symmetric(horizontal: pad),
-                      itemCount: catalog.categories.length,
-                      separatorBuilder: (context, index) => const SizedBox(width: 12),
-                      itemBuilder: (context, i) {
-                        final cat = catalog.categories[i];
-                        return CategoryTile(
-                          category: cat,
-                          onTap: () => context.push('/category/${cat.id}'),
-                        );
-                      },
+                    SizedBox(
+                      height: 110,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        padding: EdgeInsets.symmetric(horizontal: pad),
+                        itemCount: catalog.categories.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(width: 12),
+                        itemBuilder: (context, i) {
+                          final cat = catalog.categories[i];
+                          return CategoryTile(
+                            category: cat,
+                            onTap: () => context.push('/category/${cat.id}'),
+                          );
+                        },
+                      ),
                     ),
-                  ),
                   ],
 
                   // Popular near you
                   if (catalog.popularVendors.isNotEmpty) ...[
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(pad, 28, pad, 0),
-                    child: SectionHeader(
-                      title: 'Popular near you',
-                      subtitle: 'Most ordered home businesses',
-                      actionLabel: 'See all',
-                      onAction: () => context.go('/search'),
-                    ),
-                  ),
-                  SizedBox(
-                    height: 230,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      padding: EdgeInsets.symmetric(horizontal: pad),
-                      itemCount: catalog.popularVendors.length,
-                      separatorBuilder: (context, index) => const SizedBox(width: 12),
-                      itemBuilder: (context, i) => VendorCard(
-                        vendor: catalog.popularVendors[i],
-                        horizontal: true,
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(pad, 28, pad, 0),
+                      child: SectionHeader(
+                        title: 'Popular near you',
+                        subtitle: 'Most ordered home businesses',
+                        actionLabel: 'See all',
+                        onAction: () => context.go('/search'),
                       ),
                     ),
-                  ),
+                    SizedBox(
+                      height: 230,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        padding: EdgeInsets.symmetric(horizontal: pad),
+                        itemCount: catalog.popularVendors.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(width: 12),
+                        itemBuilder: (context, i) => VendorCard(
+                          vendor: catalog.popularVendors[i],
+                          horizontal: true,
+                        ),
+                      ),
+                    ),
                   ],
 
                   // Top rated
                   if (catalog.topRated.isNotEmpty) ...[
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(pad, 28, pad, 0),
-                    child: const SectionHeader(
-                      title: 'Top rated kitchens',
-                      subtitle: 'Loved by customers',
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(pad, 28, pad, 0),
+                      child: const SectionHeader(
+                        title: 'Top rated sellers',
+                        subtitle: 'Loved by customers',
+                      ),
                     ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: pad),
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final cols = Responsive.gridColumns(context,
-                            mobile: 1, tablet: 2, desktop: 3);
-                        return GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: catalog.topRated.length.clamp(0, cols * 2),
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: cols,
-                            mainAxisSpacing: 14,
-                            crossAxisSpacing: 14,
-                            childAspectRatio: cols == 1 ? 1.55 : 0.95,
-                          ),
-                          itemBuilder: (context, i) =>
-                              VendorCard(vendor: catalog.topRated[i]),
-                        );
-                      },
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: pad),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final cols = Responsive.gridColumns(
+                            context,
+                            mobile: 1,
+                            tablet: 2,
+                            desktop: 3,
+                          );
+                          return GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: catalog.topRated.length.clamp(
+                              0,
+                              cols * 2,
+                            ),
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: cols,
+                                  mainAxisSpacing: 14,
+                                  crossAxisSpacing: 14,
+                                  childAspectRatio: cols == 1 ? 1.55 : 0.95,
+                                ),
+                            itemBuilder: (context, i) =>
+                                VendorCard(vendor: catalog.topRated[i]),
+                          );
+                        },
+                      ),
                     ),
-                  ),
                   ],
 
                   // Bestsellers
                   if (catalog.bestsellers.isNotEmpty) ...[
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(pad, 28, pad, 0),
-                    child: const SectionHeader(
-                      title: 'Bestsellers',
-                      subtitle: 'Crowd favourites this week',
-                    ),
-                  ),
-                  SizedBox(
-                    height: 280,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      padding: EdgeInsets.symmetric(horizontal: pad),
-                      itemCount: catalog.bestsellers.length,
-                      separatorBuilder: (context, index) => const SizedBox(width: 12),
-                      itemBuilder: (context, i) => SizedBox(
-                        width: 170,
-                        child: ProductCard(product: catalog.bestsellers[i]),
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(pad, 28, pad, 0),
+                      child: const SectionHeader(
+                        title: 'Bestsellers',
+                        subtitle: 'Crowd favourites this week',
                       ),
                     ),
-                  ),
+                    SizedBox(
+                      height: 280,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        padding: EdgeInsets.symmetric(horizontal: pad),
+                        itemCount: catalog.bestsellers.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(width: 12),
+                        itemBuilder: (context, i) => SizedBox(
+                          width: 170,
+                          child: ProductCard(product: catalog.bestsellers[i]),
+                        ),
+                      ),
+                    ),
                   ],
 
                   // Become a seller CTA
@@ -454,7 +495,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                            color: AppColors.secondary.withValues(alpha: 0.3)),
+                          color: AppColors.secondary.withValues(alpha: 0.3),
+                        ),
                       ),
                       child: Row(
                         children: [
@@ -463,7 +505,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Text(
-                                  'Sell from your home',
+                                  'Sell from your place',
                                   style: TextStyle(
                                     fontWeight: FontWeight.w800,
                                     fontSize: 18,
@@ -471,7 +513,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                                 const SizedBox(height: 6),
                                 Text(
-                                  'Join ${AppConstants.appName} as a home cook, cloud kitchen or home business. Reach thousands of customers.',
+                                  'Join ${AppConstants.appName} as a food seller, boutique, handmade brand or FMCG distributor.',
                                   style: const TextStyle(
                                     fontSize: 13,
                                     color: AppColors.textSecondary,
@@ -491,8 +533,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           if (wide) ...[
                             const SizedBox(width: 24),
-                            const Icon(Icons.storefront_rounded,
-                                size: 72, color: AppColors.secondary),
+                            const Icon(
+                              Icons.storefront_rounded,
+                              size: 72,
+                              color: AppColors.secondary,
+                            ),
                           ],
                         ],
                       ),

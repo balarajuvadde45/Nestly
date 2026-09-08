@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/config/app_config.dart';
+import '../legal/legal_screens.dart';
+import '../../providers/cart_provider.dart';
+import '../../providers/order_provider.dart';
+import '../../providers/seller_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/responsive.dart';
 import '../../providers/auth_provider.dart';
@@ -31,13 +36,18 @@ class ProfileScreen extends StatelessWidget {
                 child: user == null
                     ? Column(
                         children: [
-                          const Icon(Icons.person_outline_rounded,
-                              size: 48, color: AppColors.primary),
+                          const Icon(
+                            Icons.person_outline_rounded,
+                            size: 48,
+                            color: AppColors.primary,
+                          ),
                           const SizedBox(height: 12),
                           const Text(
                             'Welcome to Nestly',
                             style: TextStyle(
-                                fontWeight: FontWeight.w700, fontSize: 18),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 18,
+                            ),
                           ),
                           const SizedBox(height: 6),
                           const Text(
@@ -52,8 +62,7 @@ class ProfileScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 8),
                           TextButton(
-                            onPressed: () =>
-                                context.push('/login?seller=1'),
+                            onPressed: () => context.push('/login?seller=1'),
                             child: const Text('Seller login'),
                           ),
                         ],
@@ -82,22 +91,60 @@ class ProfileScreen extends StatelessWidget {
                                 Text(
                                   user.name,
                                   style: const TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 18),
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 18,
+                                  ),
                                 ),
-                                Text(user.phone,
-                                    style: const TextStyle(
-                                        color: AppColors.textSecondary,
-                                        fontSize: 13)),
-                                Text(user.email,
-                                    style: const TextStyle(
-                                        color: AppColors.textSecondary,
-                                        fontSize: 12)),
+                                Text(
+                                  user.phone,
+                                  style: const TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                Text(
+                                  user.email,
+                                  style: const TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 12,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
                           IconButton(
-                            onPressed: () => context.push('/login'),
+                            tooltip: 'Edit name',
+                            onPressed: () async {
+                              final controller = TextEditingController(
+                                text: user.name,
+                              );
+                              final name = await showDialog<String>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: const Text('Edit name'),
+                                  content: TextField(
+                                    controller: controller,
+                                    maxLength: 100,
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(
+                                        ctx,
+                                        controller.text.trim(),
+                                      ),
+                                      child: const Text('Save'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (name != null && name.length >= 2) {
+                                await auth.updateProfile(name: name);
+                              }
+                            },
                             icon: const Icon(Icons.edit_outlined),
                           ),
                         ],
@@ -129,21 +176,15 @@ class ProfileScreen extends StatelessWidget {
               _tile(
                 Icons.admin_panel_settings_outlined,
                 'Seller applications',
-                'Review Sell from Home submissions',
+                'Review seller submissions',
                 () => context.push('/admin/applications'),
               ),
-            _tile(
-              Icons.diversity_3_rounded,
-              'Wisdom Circle',
-              'Elders\' tips, remedies & community Q&A',
-              () => context.go('/wisdom'),
-            ),
             _tile(
               Icons.storefront_rounded,
               auth.hasBusiness ? 'Seller dashboard' : 'Become a seller',
               auth.hasBusiness
                   ? 'Switch to business dashboard'
-                  : 'Start a home business from this buyer account',
+                  : 'Register your local business',
               () {
                 if (auth.hasBusiness || auth.isSeller) {
                   auth.enterSellerMode();
@@ -154,44 +195,10 @@ class ProfileScreen extends StatelessWidget {
               },
             ),
             _tile(
-              Icons.local_offer_outlined,
-              'Offers & coupons',
-              'NESTLY20, FLAT50, FIRST100',
-              () {
-                showDialog(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: const Text('Available coupons'),
-                    content: const Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('• NESTLY20 — 20% off up to ₹100'),
-                        SizedBox(height: 8),
-                        Text('• FLAT50 — ₹50 off above ₹199'),
-                        SizedBox(height: 8),
-                        Text('• FIRST100 — ₹100 off on first order'),
-                      ],
-                    ),
-                    actions: [
-                      TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text('Got it')),
-                    ],
-                  ),
-                );
-              },
-            ),
-            _tile(
               Icons.help_outline_rounded,
               'Help & support',
-              'FAQs and contact',
-              () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Email  help@nestly.app  for support')),
-                );
-              },
+              'Contact customer support',
+              () => openPublicPage(context, AppConfig.supportUrl),
             ),
             _tile(
               Icons.privacy_tip_outlined,
@@ -215,19 +222,28 @@ class ProfileScreen extends StatelessWidget {
                   applicationName: AppConstants.appName,
                   applicationVersion: '1.0.0',
                   applicationLegalese:
-                      'Marketplace for home cooks, cloud kitchens & home businesses.',
+                      'Marketplace for local food, boutiques and wholesale.',
                 );
               },
             ),
             if (user != null) ...[
+              _tile(
+                Icons.person_remove_outlined,
+                'Delete account',
+                'Permanently remove your account',
+                () => context.push('/account/delete'),
+              ),
               const SizedBox(height: 8),
               OutlinedButton.icon(
                 onPressed: () async {
+                  context.read<CartProvider>().clear();
+                  context.read<OrderProvider>().clear();
+                  context.read<SellerProvider>().clear();
                   await auth.logout();
                   if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Logged out')),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(const SnackBar(content: Text('Logged out')));
                 },
                 icon: const Icon(Icons.logout_rounded),
                 label: const Text('Logout'),
@@ -245,7 +261,11 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _tile(
-      IconData icon, String title, String subtitle, VoidCallback onTap) {
+    IconData icon,
+    String title,
+    String subtitle,
+    VoidCallback onTap,
+  ) {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
@@ -258,8 +278,10 @@ class ProfileScreen extends StatelessWidget {
           child: Icon(icon, color: AppColors.primary, size: 22),
         ),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(subtitle,
-            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+        subtitle: Text(
+          subtitle,
+          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        ),
         trailing: const Icon(Icons.chevron_right_rounded),
         onTap: onTap,
       ),
@@ -292,23 +314,19 @@ class FavouritesScreen extends StatelessWidget {
               onAction: () => context.push('/login'),
             )
           : vendors.isEmpty
-              ? EmptyState(
-                  icon: Icons.favorite_border_rounded,
-                  title: 'No favourites yet',
-                  subtitle: 'Tap the heart on a seller to save it',
-                  actionLabel: 'Browse',
-                  onAction: () => context.go('/home'),
-                )
-              : ListView.separated(
-                  padding: EdgeInsets.all(pad),
-                  itemCount: vendors.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 12),
-                  itemBuilder: (context, i) =>
-                      VendorCard(vendor: vendors[i]),
-                ),
+          ? EmptyState(
+              icon: Icons.favorite_border_rounded,
+              title: 'No favourites yet',
+              subtitle: 'Tap the heart on a seller to save it',
+              actionLabel: 'Browse',
+              onAction: () => context.go('/home'),
+            )
+          : ListView.separated(
+              padding: EdgeInsets.all(pad),
+              itemCount: vendors.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 12),
+              itemBuilder: (context, i) => VendorCard(vendor: vendors[i]),
+            ),
     );
   }
 }
-
-

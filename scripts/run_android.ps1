@@ -21,7 +21,7 @@ if (-not ($avds -contains $avd)) {
 $devices = & adb devices 2>$null | Out-String
 if ($devices -notmatch "emulator-\d+\s+device") {
   Write-Host "Starting emulator $avd ..." -ForegroundColor Cyan
-  Start-Process -FilePath "$sdk\emulator\emulator.exe" -ArgumentList "-avd", $avd, "-netdelay", "none", "-netspeed", "full"
+  Start-Process -WindowStyle Hidden -FilePath "$sdk\emulator\emulator.exe" -ArgumentList "-avd", $avd, "-netdelay", "none", "-netspeed", "full"
   $ready = $false
   for ($i = 1; $i -le 36; $i++) {
     Start-Sleep -Seconds 5

@@ -8,6 +8,7 @@ import {
   requireAuth,
   requireRole,
 } from '../middleware/auth';
+import { normalizeString } from '../lib/marketplace';
 
 export const applicationsRouter = Router();
 
@@ -20,6 +21,15 @@ function serializeApp(a: {
   city: string;
   area: string | null;
   businessType: string;
+  premisesType: string | null;
+  businessAddress: string | null;
+  pincode: string | null;
+  gstin: string | null;
+  pan: string | null;
+  fssaiLicense: string | null;
+  categoriesJson: string;
+  documentsJson: string;
+  acceptsWholesale: boolean;
   message: string | null;
   status: ApplicationStatus;
   adminNotes: string | null;
@@ -37,6 +47,29 @@ function serializeApp(a: {
     city: a.city,
     area: a.area,
     businessType: a.businessType,
+    premisesType: a.premisesType,
+    businessAddress: a.businessAddress,
+    pincode: a.pincode,
+    gstin: a.gstin,
+    pan: a.pan,
+    fssaiLicense: a.fssaiLicense,
+    categories: (() => {
+      try {
+        const parsed = JSON.parse(a.categoriesJson);
+        return Array.isArray(parsed) ? parsed.map(String) : [];
+      } catch {
+        return [];
+      }
+    })(),
+    documents: (() => {
+      try {
+        const parsed = JSON.parse(a.documentsJson);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    })(),
+    acceptsWholesale: a.acceptsWholesale,
     message: a.message,
     status: a.status,
     adminNotes: a.adminNotes,
@@ -47,7 +80,7 @@ function serializeApp(a: {
   };
 }
 
-/** Public: anyone can submit "Sell from Home" application */
+/** Public: anyone can submit "seller" application */
 applicationsRouter.post('/', optionalAuth, async (req, res, next) => {
   try {
     const schema = z.object({
@@ -58,6 +91,15 @@ applicationsRouter.post('/', optionalAuth, async (req, res, next) => {
       city: z.string().min(2),
       area: z.string().optional(),
       businessType: z.string().min(2),
+      premisesType: z.string().optional(),
+      businessAddress: z.string().optional(),
+      pincode: z.string().optional(),
+      gstin: z.string().optional(),
+      pan: z.string().optional(),
+      fssaiLicense: z.string().optional(),
+      categories: z.array(z.string()).optional(),
+      documents: z.array(z.record(z.unknown())).optional(),
+      acceptsWholesale: z.boolean().default(false),
       message: z.string().optional(),
     });
     const body = schema.parse(req.body);
@@ -71,14 +113,20 @@ applicationsRouter.post('/', optionalAuth, async (req, res, next) => {
         city: body.city.trim(),
         area: body.area?.trim() || null,
         businessType: body.businessType.trim(),
+        premisesType: normalizeString(body.premisesType),
+        businessAddress: normalizeString(body.businessAddress),
+        pincode: normalizeString(body.pincode),
+        gstin: normalizeString(body.gstin),
+        pan: normalizeString(body.pan),
+        fssaiLicense: normalizeString(body.fssaiLicense),
+        categoriesJson: JSON.stringify(body.categories ?? []),
+        documentsJson: JSON.stringify(body.documents ?? []),
+        acceptsWholesale: body.acceptsWholesale,
         message: body.message?.trim() || null,
         status: ApplicationStatus.PENDING,
       },
     });
 
-    console.log(
-      `[Nestly] New seller application: ${app.businessName} (${app.phone}) id=${app.id}`,
-    );
 
     res.status(201).json({
       application: serializeApp(app),
@@ -96,12 +144,13 @@ applicationsRouter.get(
   requireRole(Role.ADMIN),
   async (req: AuthedRequest, res, next) => {
     try {
-      const status = req.query.status as string | undefined;
+      const status = z.nativeEnum(ApplicationStatus).optional().parse(req.query.status);
       const apps = await prisma.sellerApplication.findMany({
         where: status
           ? { status: status as ApplicationStatus }
           : undefined,
         orderBy: { createdAt: 'desc' },
+        take: 100,
       });
 
       const pendingCount = await prisma.sellerApplication.count({
@@ -210,14 +259,25 @@ applicationsRouter.patch(
         return;
       }
 
-      const app = await prisma.sellerApplication.update({
-        where: { id },
-        data: {
-          status: body.status as ApplicationStatus,
-          adminNotes: body.adminNotes ?? existing.adminNotes,
-          reviewedAt: new Date(),
-          reviewedBy: req.user!.email,
-        },
+      const app = await prisma.$transaction(async tx => {
+        if (existing.vendorId) {
+          const vendor = await tx.vendor.findUniqueOrThrow({ where: { id: existing.vendorId } });
+          if (body.status === 'APPROVED' && (!vendor.businessAddress || !vendor.pincode || !vendor.imageUrl)) {
+            throw Object.assign(new Error('Seller must complete address, pincode and store image before approval'), { status: 400 });
+          }
+          await tx.vendor.update({ where: { id: vendor.id }, data: {
+            isApproved: body.status === 'APPROVED',
+            kycStatus: body.status === 'APPROVED' ? 'VERIFIED' : body.status === 'REJECTED' ? 'REJECTED' : 'PENDING',
+          } });
+        } else if (body.status === 'APPROVED') {
+          throw Object.assign(new Error('Ask this applicant to create a business from their account before approval'), { status: 400 });
+        }
+        return tx.sellerApplication.update({
+          where: { id }, data: {
+            status: body.status, adminNotes: body.adminNotes ?? existing.adminNotes,
+            reviewedAt: new Date(), reviewedBy: req.user!.email,
+          },
+        });
       });
 
       res.json({ application: serializeApp(app) });

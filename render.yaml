@@ -1,28 +1,33 @@
-# Nestly API on Render.
-# Connect this GitHub repo, then set DATABASE_URL and JWT_SECRET in the dashboard.
-# Do NOT run db:seed or db:reset on this service.
-
 services:
   - type: web
     name: nestly-api
     runtime: node
     rootDir: backend
-    plan: free
-    buildCommand: npm install && npx prisma generate
-    startCommand: npx prisma db push && npx tsx src/index.ts
-    healthCheckPath: /health
+    plan: starter
+    buildCommand: npm ci && npx prisma generate && npm run build
+    preDeployCommand: npx prisma migrate deploy
+    startCommand: node dist/index.js
+    healthCheckPath: /readyz
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 4000
+      - key: NODE_VERSION
+        value: 22
       - key: JWT_EXPIRES_IN
-        value: 7d
+        value: 1d
+      - key: TRUST_PROXY_HOPS
+        value: 1
       - key: CORS_ORIGIN
         sync: false
       - key: DATABASE_URL
         sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_VERIFY_SERVICE_SID
+        sync: false
       - key: JWT_SECRET
         generateValue: true
-      - key: DEFAULT_CITY
-        value: Hyderabad

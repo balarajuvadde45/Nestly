@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../../core/config/app_config.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/formatters.dart';
@@ -59,9 +61,11 @@ class _VendorScreenState extends State<VendorScreen> {
     if (_query.isNotEmpty) {
       final q = _query.toLowerCase();
       products = products
-          .where((p) =>
-              p.name.toLowerCase().contains(q) ||
-              p.description.toLowerCase().contains(q))
+          .where(
+            (p) =>
+                p.name.toLowerCase().contains(q) ||
+                p.description.toLowerCase().contains(q),
+          )
           .toList();
     }
 
@@ -79,16 +83,25 @@ class _VendorScreenState extends State<VendorScreen> {
             actions: [
               IconButton(
                 icon: Icon(
-                  isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                  isFav
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
                   color: isFav ? AppColors.primary : Colors.white,
                 ),
                 onPressed: () => auth.toggleFavoriteVendor(vendor.id),
               ),
               IconButton(
                 icon: const Icon(Icons.share_outlined, color: Colors.white),
-                onPressed: () {
+                tooltip: 'Copy store link',
+                onPressed: () async {
+                  final base = AppConfig.publicWebUrl;
+                  if (base.isEmpty) return;
+                  await Clipboard.setData(
+                    ClipboardData(text: '$base/#/vendor/${vendor.id}'),
+                  );
+                  if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Share link copied (demo)')),
+                    const SnackBar(content: Text('Store link copied')),
                   );
                 },
               ),
@@ -179,7 +192,9 @@ class _VendorScreenState extends State<VendorScreen> {
                             const Spacer(),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppColors.secondaryLight,
                                 borderRadius: BorderRadius.circular(6),
@@ -209,17 +224,23 @@ class _VendorScreenState extends State<VendorScreen> {
                           spacing: 8,
                           runSpacing: 8,
                           children: [
-                            _infoChip(Icons.schedule_rounded,
-                                Formatters.deliveryTime(vendor.deliveryTimeMins)),
-                            _infoChip(Icons.location_on_outlined,
-                                '${Formatters.distance(vendor.distanceKm)} • ${vendor.area}'),
+                            _infoChip(
+                              Icons.schedule_rounded,
+                              Formatters.deliveryTime(vendor.deliveryTimeMins),
+                            ),
+                            _infoChip(Icons.location_on_outlined, vendor.area),
                             if (vendor.freeDelivery)
-                              _infoChip(Icons.delivery_dining_rounded,
-                                  'Free delivery',
-                                  color: AppColors.freeDelivery),
+                              _infoChip(
+                                Icons.delivery_dining_rounded,
+                                'Free delivery',
+                                color: AppColors.freeDelivery,
+                              ),
                             if (vendor.isPureVeg)
-                              _infoChip(Icons.eco_rounded, 'Pure Veg',
-                                  color: AppColors.veg),
+                              _infoChip(
+                                Icons.eco_rounded,
+                                'Pure Veg',
+                                color: AppColors.veg,
+                              ),
                           ],
                         ),
                         if (vendor.offerText != null) ...[
@@ -233,8 +254,11 @@ class _VendorScreenState extends State<VendorScreen> {
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.local_offer_rounded,
-                                    color: Color(0xFF1A237E), size: 18),
+                                const Icon(
+                                  Icons.local_offer_rounded,
+                                  color: Color(0xFF1A237E),
+                                  size: 18,
+                                ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
@@ -255,12 +279,16 @@ class _VendorScreenState extends State<VendorScreen> {
                           Wrap(
                             spacing: 6,
                             children: vendor.tags
-                                .map((t) => Chip(
-                                      label: Text(t,
-                                          style: const TextStyle(fontSize: 11)),
-                                      visualDensity: VisualDensity.compact,
-                                      padding: EdgeInsets.zero,
-                                    ))
+                                .map(
+                                  (t) => Chip(
+                                    label: Text(
+                                      t,
+                                      style: const TextStyle(fontSize: 11),
+                                    ),
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                  ),
+                                )
                                 .toList(),
                           ),
                         ],
@@ -311,30 +339,38 @@ class _VendorScreenState extends State<VendorScreen> {
                               if (!useGrid) {
                                 return Column(
                                   children: products
-                                      .map((p) => Padding(
-                                            padding: const EdgeInsets.only(
-                                                bottom: 10),
-                                            child: ProductCard(
-                                              product: p,
-                                              compact: true,
-                                            ),
-                                          ))
+                                      .map(
+                                        (p) => Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 10,
+                                          ),
+                                          child: ProductCard(
+                                            product: p,
+                                            compact: true,
+                                          ),
+                                        ),
+                                      )
                                       .toList(),
                                 );
                               }
-                              final cols = Responsive.gridColumns(context,
-                                  mobile: 2, tablet: 3, desktop: 4);
+                              final cols = Responsive.gridColumns(
+                                context,
+                                mobile: 2,
+                                tablet: 3,
+                                desktop: 4,
+                              );
                               return GridView.builder(
                                 shrinkWrap: true,
                                 physics: const NeverScrollableScrollPhysics(),
                                 itemCount: products.length,
                                 gridDelegate:
                                     SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: cols,
-                                  mainAxisSpacing: 12,
-                                  crossAxisSpacing: 12,
-                                  childAspectRatio: Responsive.productAspect(context),
-                                ),
+                                      crossAxisCount: cols,
+                                      mainAxisSpacing: 12,
+                                      crossAxisSpacing: 12,
+                                      childAspectRatio:
+                                          Responsive.productAspect(context),
+                                    ),
                                 itemBuilder: (context, i) =>
                                     ProductCard(product: products[i]),
                               );

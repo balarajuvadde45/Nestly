@@ -7,7 +7,7 @@ import '../core/utils/responsive.dart';
 import '../models/category_tree.dart';
 import '../providers/cart_provider.dart';
 
-/// Web-style top header: logo + Food | Pickles | Clothes (mega) | Wisdom | Sell
+/// Web-style top header: logo + marketplace hubs + Sell
 class MarketplaceHeader extends StatelessWidget {
   final String? activeHubId;
 
@@ -31,7 +31,9 @@ class MarketplaceHeader extends StatelessWidget {
         children: [
           // Brand row
           Container(
-            constraints: const BoxConstraints(maxWidth: AppConstants.maxContentWidth),
+            constraints: const BoxConstraints(
+              maxWidth: AppConstants.maxContentWidth,
+            ),
             padding: EdgeInsets.symmetric(horizontal: pad, vertical: 10),
             child: Row(
               children: [
@@ -47,8 +49,11 @@ class MarketplaceHeader extends StatelessWidget {
                           color: AppColors.primary,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.home_work_rounded,
-                            color: Colors.white, size: 22),
+                        child: const Icon(
+                          Icons.home_work_rounded,
+                          color: Colors.white,
+                          size: 22,
+                        ),
                       ),
                       const SizedBox(width: 10),
                       Column(
@@ -63,7 +68,7 @@ class MarketplaceHeader extends StatelessWidget {
                             ),
                           ),
                           const Text(
-                            'Home businesses worldwide · Food · Fashion · Wisdom',
+                            'Local businesses / Food / Fashion / Wholesale',
                             style: TextStyle(
                               fontSize: 11,
                               color: AppColors.textSecondary,
@@ -114,20 +119,21 @@ class MarketplaceHeader extends StatelessWidget {
             ),
             child: Center(
               child: ConstrainedBox(
-                constraints:
-                    const BoxConstraints(maxWidth: AppConstants.maxContentWidth),
+                constraints: const BoxConstraints(
+                  maxWidth: AppConstants.maxContentWidth,
+                ),
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: pad),
                   child: Row(
                     children: [
                       for (final hub in CategoryTree.hubs) ...[
-                        if (hub.id == 'hub_clothes' || hub.id == 'hub_food')
-                          _HubMenuButton(hub: hub, active: activeHubId == hub.id)
-                        else
-                          _HubLink(
+                        if (hub.hasChildren && hub.routeOverride == null)
+                          _HubMenuButton(
                             hub: hub,
                             active: activeHubId == hub.id,
-                          ),
+                          )
+                        else
+                          _HubLink(hub: hub, active: activeHubId == hub.id),
                         const SizedBox(width: 4),
                       ],
                       const Spacer(),
@@ -241,8 +247,10 @@ class _HubMenuButtonState extends State<_HubMenuButton> {
               dense: true,
               contentPadding: EdgeInsets.zero,
               leading: Icon(s.icon, size: 22),
-              title: Text(s.name,
-                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              title: Text(
+                s.name,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
               subtitle: Text(s.description, maxLines: 1),
             ),
           ),
@@ -269,8 +277,9 @@ class _HubMenuButtonState extends State<_HubMenuButton> {
       key: _key,
       onPressed: _openMenu,
       style: TextButton.styleFrom(
-        foregroundColor:
-            widget.active ? AppColors.primary : AppColors.textPrimary,
+        foregroundColor: widget.active
+            ? AppColors.primary
+            : AppColors.textPrimary,
         textStyle: TextStyle(
           fontWeight: widget.active ? FontWeight.w800 : FontWeight.w600,
           fontSize: 14,
@@ -307,8 +316,11 @@ class _MobileHubBar extends StatelessWidget {
           final hub = CategoryTree.hubs[i];
           final active = activeHubId == hub.id;
           return ChoiceChip(
-            avatar: Icon(hub.icon, size: 16,
-                color: active ? AppColors.primary : AppColors.textSecondary),
+            avatar: Icon(
+              hub.icon,
+              size: 16,
+              color: active ? AppColors.primary : AppColors.textSecondary,
+            ),
             label: Text(hub.shortLabel),
             selected: active,
             onSelected: (_) {
@@ -351,7 +363,7 @@ class HubShowcase extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           const Text(
-            'Food · Pickles · Clothes (Boutiques) · Wisdom from elders',
+            'Food / Pickles / Clothes / Wholesale',
             style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
           ),
           const SizedBox(height: 14),
@@ -421,13 +433,16 @@ class _HubCard extends StatelessWidget {
               const Spacer(),
               Text(
                 hub.name,
-                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                ),
               ),
               const SizedBox(height: 4),
               Text(
                 hub.children.isEmpty
                     ? hub.description
-                    : hub.children.map((c) => c.name).take(3).join(' · '),
+                    : hub.children.map((c) => c.name).take(3).join(' / '),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
@@ -436,17 +451,19 @@ class _HubCard extends StatelessWidget {
                   height: 1.3,
                 ),
               ),
-              if (hub.id == 'hub_clothes') ...[
+              if (hub.id == 'hub_clothes' || hub.id == 'hub_wholesale') ...[
                 const SizedBox(height: 6),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.secondaryLight,
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: const Text(
-                    'Boutiques inside →',
+                    'Explore inside',
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,

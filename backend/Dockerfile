@@ -30,6 +30,7 @@ RUN npm ci --omit=dev
 COPY prisma ./prisma
 RUN npx prisma generate
 COPY --from=build /app/dist ./dist
+USER node
 EXPOSE 4000
-# Apply pending migrations, then start. `migrate deploy` is safe & idempotent.
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
+# Migrations run once as a separate release job.
+CMD ["node", "dist/index.js"]

@@ -15,7 +15,9 @@ class CartItem {
     this.specialInstructions,
   });
 
-  double get lineTotal => product.price * quantity;
+  double get unitPrice => product.unitPriceForQuantity(quantity);
+
+  double get lineTotal => unitPrice * quantity;
 
   CartItem copyWith({
     String? id,

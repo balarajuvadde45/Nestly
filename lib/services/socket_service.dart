@@ -11,11 +11,13 @@ class SocketService {
   bool get isConnected => _socket?.connected ?? false;
 
   void setToken(String? token) {
+    if (_token != token) disconnect();
     _token = token;
   }
 
   void connect() {
-    if (_socket?.connected == true) return;
+    if (_token == null || _token!.isEmpty) return;
+    if (_socket != null) return;
     _socket?.dispose();
     _socket = io.io(
       AppConfig.socketUrl,
@@ -27,9 +29,6 @@ class SocketService {
     );
     _socket!.onConnect((_) {});
     _socket!.onDisconnect((_) {});
-    _socket!.onConnectError((e) {
-      // Backend may be offline — app falls back to polling/mock
-    });
   }
 
   void disconnect() {

@@ -67,10 +67,17 @@ class Address {
   }
 }
 
+class OrderEvent {
+  final String message;
+  final DateTime time;
+  const OrderEvent({required this.message, required this.time});
+}
+
 class Order {
   final String id;
   final String vendorId;
   final String vendorName;
+  final List<OrderEvent> events;
   final List<CartItem> items;
   final OrderStatus status;
   final DateTime placedAt;
@@ -94,6 +101,7 @@ class Order {
     required this.id,
     required this.vendorId,
     required this.vendorName,
+    this.events = const [],
     required this.items,
     required this.status,
     required this.placedAt,
@@ -150,6 +158,7 @@ class Order {
       id: id,
       vendorId: vendorId,
       vendorName: vendorName,
+      events: events,
       items: items,
       status: status ?? this.status,
       placedAt: placedAt,

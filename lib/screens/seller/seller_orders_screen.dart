@@ -96,7 +96,9 @@ class SellerOrderDetailScreen extends StatelessWidget {
     if (order == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Order')),
-        body: const Center(child: Text('Order not found. Refresh orders list.')),
+        body: const Center(
+          child: Text('Order not found. Refresh orders list.'),
+        ),
       );
     }
 
@@ -113,7 +115,7 @@ class SellerOrderDetailScreen extends StatelessWidget {
         nextActions.add(('OUT_FOR_DELIVERY', 'Out for delivery'));
         break;
       case OrderStatus.outForDelivery:
-        nextActions.add(('DELIVERED', 'Mark delivered'));
+        nextActions.add(('DELIVERED', 'Delivered and cash received'));
         break;
       default:
         break;
@@ -130,9 +132,13 @@ class SellerOrderDetailScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(order.statusLabel,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w800, fontSize: 18)),
+                  Text(
+                    order.statusLabel,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   Text(Formatters.dateTime(order.placedAt)),
                   const SizedBox(height: 8),
@@ -151,28 +157,37 @@ class SellerOrderDetailScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Items',
-                      style: TextStyle(fontWeight: FontWeight.w700)),
+                  const Text(
+                    'Items',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
                   const SizedBox(height: 8),
-                  ...order.items.map((i) => Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: Row(
-                          children: [
-                            Expanded(
-                                child: Text(
-                                    '${i.product.name} × ${i.quantity}')),
-                            Text(Formatters.currency(i.lineTotal)),
-                          ],
-                        ),
-                      )),
+                  ...order.items.map(
+                    (i) => Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text('${i.product.name} × ${i.quantity}'),
+                          ),
+                          Text(Formatters.currency(i.lineTotal)),
+                        ],
+                      ),
+                    ),
+                  ),
                   const Divider(),
                   Row(
                     children: [
                       const Expanded(
-                          child: Text('Total',
-                              style: TextStyle(fontWeight: FontWeight.w700))),
-                      Text(Formatters.currency(order.grandTotal),
-                          style: const TextStyle(fontWeight: FontWeight.w800)),
+                        child: Text(
+                          'Total',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      Text(
+                        Formatters.currency(order.grandTotal),
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
                     ],
                   ),
                 ],
@@ -181,8 +196,10 @@ class SellerOrderDetailScreen extends StatelessWidget {
           ),
           if (nextActions.isNotEmpty) ...[
             const SizedBox(height: 20),
-            const Text('Update status',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            const Text(
+              'Update status',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+            ),
             const SizedBox(height: 10),
             ...nextActions.map((a) {
               final isCancel = a.$1 == 'CANCELLED';
@@ -213,7 +230,7 @@ class SellerOrderDetailScreen extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: () => context.push('/track/${order.id}'),
               icon: const Icon(Icons.map_outlined),
-              label: const Text('View live map'),
+              label: const Text('View order status'),
             ),
           ],
         ],
@@ -222,14 +239,38 @@ class SellerOrderDetailScreen extends StatelessWidget {
   }
 
   Future<void> _update(BuildContext context, String status) async {
+    if (status == 'DELIVERED') {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Confirm delivery'),
+          content: const Text(
+            'Has the buyer received the order and paid the full cash amount?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Back'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Confirm'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !context.mounted) return;
+    }
     final seller = context.read<SellerProvider>();
     final ok = await seller.updateOrderStatus(orderId, status);
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(ok
-            ? 'Updated to ${orderStatusFromApi(status).name}'
-            : (seller.error ?? 'Failed')),
+        content: Text(
+          ok
+              ? 'Updated to ${orderStatusFromApi(status).name}'
+              : (seller.error ?? 'Failed'),
+        ),
       ),
     );
   }

@@ -105,7 +105,7 @@ class CategoryScreen extends StatelessWidget {
                                 ),
                               ),
                               Text(
-                                '${vendors.length} sellers • ${products.length} items',
+                                '${vendors.length} sellers / ${products.length} items',
                                 style: const TextStyle(
                                   color: AppColors.textSecondary,
                                   fontSize: 13,
@@ -127,29 +127,37 @@ class CategoryScreen extends StatelessWidget {
                     const SizedBox(height: 24),
                     if (vendors.isNotEmpty) ...[
                       const SectionHeader(title: 'Sellers in this category'),
-                      ...vendors.map((v) => Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: VendorCard(vendor: v),
-                          )),
+                      ...vendors.map(
+                        (v) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: VendorCard(vendor: v),
+                        ),
+                      ),
                     ],
                     if (products.isNotEmpty) ...[
                       const SizedBox(height: 12),
                       const SectionHeader(title: 'Popular items'),
                       LayoutBuilder(
                         builder: (context, constraints) {
-                          final cols = Responsive.gridColumns(context,
-                              mobile: 2, tablet: 3, desktop: 4);
+                          final cols = Responsive.gridColumns(
+                            context,
+                            mobile: 2,
+                            tablet: 3,
+                            desktop: 4,
+                          );
                           return GridView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: products.length,
                             gridDelegate:
                                 SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: cols,
-                              mainAxisSpacing: 12,
-                              crossAxisSpacing: 12,
-                              childAspectRatio: Responsive.productAspect(context),
-                            ),
+                                  crossAxisCount: cols,
+                                  mainAxisSpacing: 12,
+                                  crossAxisSpacing: 12,
+                                  childAspectRatio: Responsive.productAspect(
+                                    context,
+                                  ),
+                                ),
                             itemBuilder: (context, i) =>
                                 ProductCard(product: products[i]),
                           );
@@ -181,8 +189,12 @@ class CategoriesListScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final catalog = context.watch<CatalogProvider>();
     final pad = Responsive.contentPadding(context);
-    final cols =
-        Responsive.gridColumns(context, mobile: 2, tablet: 3, desktop: 4);
+    final cols = Responsive.gridColumns(
+      context,
+      mobile: 2,
+      tablet: 3,
+      desktop: 4,
+    );
 
     return Scaffold(
       appBar: AppBar(title: const Text('All Categories')),
@@ -227,13 +239,17 @@ class CategoriesListScreen extends StatelessWidget {
                         c.name,
                         textAlign: TextAlign.center,
                         style: const TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 14),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         '${c.vendorCount} sellers',
                         style: const TextStyle(
-                            fontSize: 12, color: AppColors.textSecondary),
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ),

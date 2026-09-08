@@ -18,6 +18,11 @@ enum VendorType {
   CLOUD_KITCHEN
   HOME_BUSINESS
   BOUTIQUE
+  FOOD_OUTLET
+  PICKLES_AND_PACKAGED_FOOD
+  SWEETS_SNACKS
+  FMCG_DISTRIBUTOR
+  HANDMADE_PRODUCTS
 }
 
 enum ProductType {
@@ -27,6 +32,13 @@ enum ProductType {
   SNACK
   SWEET
   GROCERY
+  FMCG
+  PERSONAL_CARE
+  HOME_CARE
+  BEVERAGE
+  READY_TO_COOK
+  SAREE
+  ACCESSORY
   OTHER
 }
 
@@ -56,6 +68,7 @@ model User {
   avatarUrl    String?
   googleId     String?   @unique
   authProvider String    @default("email") // email | phone | google
+  deletedAt    DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -107,12 +120,28 @@ model Vendor {
   imageUrl         String
   coverUrl         String
   type             VendorType
-  rating           Float      @default(4.5)
+  rating           Float      @default(0)
   reviewCount      Int        @default(0)
   deliveryTimeMins Int        @default(40)
   distanceKm       Float      @default(2.0)
   area             String
   city             String     @default("Hyderabad")
+  businessAddress  String?
+  pincode          String?
+  premisesType     String     @default("BUSINESS_PLACE")
+  supportPhone     String?
+  supportEmail     String?
+  gstin            String?
+  pan              String?
+  fssaiLicense     String?
+  fssaiExpiry      DateTime?
+  kycStatus        String     @default("PENDING") // PENDING | VERIFIED | REJECTED
+  bankAccountLast4 String?
+  bankVerified     Boolean    @default(false)
+  fulfillmentModesJson String @default("[\"LOCAL_DELIVERY\"]")
+  serviceRadiusKm  Float      @default(5)
+  gstInvoiceAvailable Boolean @default(false)
+  acceptsWholesale Boolean    @default(false)
   categoriesJson   String     @default("[]")
   tagsJson         String     @default("[]")
   isOpen           Boolean    @default(true)
@@ -123,7 +152,7 @@ model Vendor {
   orderCount       Int        @default(0)
   lat              Float      @default(17.4486)
   lng              Float      @default(78.3908)
-  isApproved       Boolean    @default(true)
+  isApproved       Boolean    @default(false)
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 
@@ -132,6 +161,8 @@ model Vendor {
   orders   Order[]
 
   @@index([isApproved, city])
+  @@index([type, city])
+  @@index([acceptsWholesale, city])
   @@index([name])
   @@index([orderCount])
   @@index([rating])
@@ -145,11 +176,35 @@ model Product {
   description  String
   price        Float
   mrp          Float?
+  brandName    String?
+  sku          String?
+  unitLabel    String?
+  minOrderQuantity Int @default(1)
+  casePackQuantity Int?
+  maxOrderQuantity Int?
+  stockQuantity    Int?
+  hsnCode      String?
+  gstRate      Float?
+  batchNumber  String?
+  manufactureDate DateTime?
+  expiryDate   DateTime?
+  shelfLifeDays Int?
+  manufacturerName String?
+  packerName   String?
+  originCountry String? @default("India")
+  fssaiLicense String?
+  isReturnable Boolean @default(false)
+  returnWindowDays Int?
+  madeToOrder  Boolean @default(false)
+  dispatchTimeDays Int?
+  wholesaleTiersJson String @default("[]")
+  colorsJson   String @default("[]")
+  material     String?
   imageUrl     String
   type         ProductType @default(FOOD)
   isVeg        Boolean     @default(true)
   isAvailable  Boolean     @default(true)
-  rating       Float       @default(4.0)
+  rating       Float       @default(0)
   reviewCount  Int         @default(0)
   tagsJson     String      @default("[]")
   prepTimeMins Int?
@@ -165,6 +220,9 @@ model Product {
   @@index([isAvailable, name])
   @@index([vendorId, isAvailable])
   @@index([categoryId])
+  @@index([type, isAvailable])
+  @@index([sku])
+  @@index([brandName])
   @@index([reviewCount])
 }
 
@@ -197,6 +255,10 @@ model Order {
   discount          Float         @default(0)
   grandTotal        Float
   couponCode        String?
+  fulfillmentMode   String        @default("LOCAL_DELIVERY")
+  invoiceRequired   Boolean       @default(false)
+  buyerGstin        String?
+  sellerGstin       String?
   deliveryPartner   String?
   riderLat          Float?
   riderLng          Float?
@@ -204,6 +266,13 @@ model Order {
   placedAt          DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
   notes             String?
+  idempotencyKey    String?
+  requestHash       String?
+  addressSnapshotJson String?
+
+  @@unique([customerId, idempotencyKey])
+  @@index([customerId, placedAt])
+  @@index([vendorId, status, placedAt])
 
   customer User      @relation("CustomerOrders", fields: [customerId], references: [id])
   vendor   Vendor    @relation(fields: [vendorId], references: [id])
@@ -220,6 +289,10 @@ model OrderItem {
   productImage        String
   unitPrice           Float
   quantity            Int
+  unitLabel           String?
+  hsnCode             String?
+  gstRate             Float?
+  lineTax             Float       @default(0)
   selectedSize        String?
   specialInstructions String?
   isVeg               Boolean @default(true)
@@ -262,7 +335,7 @@ model Coupon {
   description   String?
 }
 
-/// "Sell from Home" applications — reviewed by platform admin (you).
+/// Seller applications reviewed by platform admin.
 enum ApplicationStatus {
   PENDING
   APPROVED
@@ -272,6 +345,7 @@ enum ApplicationStatus {
 
 model SellerApplication {
   id             String            @id @default(uuid())
+  vendorId       String?           @unique
   applicantName  String
   businessName   String
   phone          String
@@ -279,6 +353,15 @@ model SellerApplication {
   city           String
   area           String?
   businessType   String
+  premisesType   String?
+  businessAddress String?
+  pincode        String?
+  gstin          String?
+  pan            String?
+  fssaiLicense   String?
+  categoriesJson String @default("[]")
+  documentsJson String @default("[]")
+  acceptsWholesale Boolean @default(false)
   message        String?
   status         ApplicationStatus @default(PENDING)
   adminNotes     String?

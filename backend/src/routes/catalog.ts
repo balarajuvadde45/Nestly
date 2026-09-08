@@ -17,7 +17,7 @@ catalogRouter.get('/search', async (req, res, next) => {
   const started = Date.now();
   try {
     const q = String(req.query.q || '').trim();
-    const limit = Math.min(Number(req.query.limit) || 24, 48);
+    const limit = Math.max(1, Math.min(Math.floor(Number(req.query.limit)) || 24, 48));
     const vegOnly = req.query.vegOnly === 'true';
 
     if (!q || q.length < 1) {
@@ -34,11 +34,16 @@ catalogRouter.get('/search', async (req, res, next) => {
       prisma.product.findMany({
         where: {
           isAvailable: true,
+          vendor: { isApproved: true },
           ...(vegOnly ? { isVeg: true } : {}),
           OR: [
             { name: { contains: q, mode: 'insensitive' } },
             { description: { contains: q, mode: 'insensitive' } },
             { tagsJson: { contains: q, mode: 'insensitive' } },
+            { brandName: { contains: q, mode: 'insensitive' } },
+            { sku: { contains: q, mode: 'insensitive' } },
+            { hsnCode: { contains: q, mode: 'insensitive' } },
+            { unitLabel: { contains: q, mode: 'insensitive' } },
           ],
         },
         orderBy: [{ reviewCount: 'desc' }, { rating: 'desc' }],
@@ -53,6 +58,7 @@ catalogRouter.get('/search', async (req, res, next) => {
             { tagline: { contains: q, mode: 'insensitive' } },
             { area: { contains: q, mode: 'insensitive' } },
             { tagsJson: { contains: q, mode: 'insensitive' } },
+            { gstin: { contains: q, mode: 'insensitive' } },
             { description: { contains: q, mode: 'insensitive' } },
           ],
         },
@@ -64,7 +70,7 @@ catalogRouter.get('/search', async (req, res, next) => {
     res.json({
       query: q,
       products: products.map(serializeProduct),
-      vendors: vendors.map(serializeVendor),
+      vendors: vendors.map(v => serializeVendor(v)),
       tookMs: Date.now() - started,
     });
   } catch (e) {
@@ -126,18 +132,19 @@ catalogRouter.get('/vendors', async (req, res, next) => {
                 { tagline: { contains: q, mode: 'insensitive' } },
                 { area: { contains: q, mode: 'insensitive' } },
                 { tagsJson: { contains: q, mode: 'insensitive' } },
+                { businessAddress: { contains: q, mode: 'insensitive' } },
               ],
             }
           : {}),
         ...(categoryId
-          ? { categoriesJson: { contains: categoryId } }
+          ? { AND: [{ OR: [{ categoriesJson: { contains: categoryId } }, { products: { some: { categoryId, isAvailable: true } } }] }] }
           : {}),
       },
       orderBy,
       take: 60,
     });
 
-    res.json({ vendors: vendors.map(serializeVendor) });
+    res.json({ vendors: vendors.map(v => serializeVendor(v)) });
   } catch (e) {
     next(e);
   }
@@ -161,7 +168,8 @@ catalogRouter.get('/vendors/:id', async (req, res, next) => {
 catalogRouter.get('/vendors/:id/products', async (req, res, next) => {
   try {
     const products = await prisma.product.findMany({
-      where: { vendorId: req.params.id },
+      where: { vendorId: req.params.id, isAvailable: true, vendor: { isApproved: true } },
+      take: 120,
       orderBy: { name: 'asc' },
     });
     res.json({ products: products.map(serializeProduct) });
@@ -179,6 +187,7 @@ catalogRouter.get('/products', async (req, res, next) => {
     const products = await prisma.product.findMany({
       where: {
         isAvailable: true,
+          vendor: { isApproved: true },
         ...(categoryId ? { categoryId } : {}),
         ...(vendorId ? { vendorId } : {}),
         ...(vegOnly === 'true' ? { isVeg: true } : {}),
@@ -188,6 +197,10 @@ catalogRouter.get('/products', async (req, res, next) => {
                 { name: { contains: q, mode: 'insensitive' } },
                 { description: { contains: q, mode: 'insensitive' } },
                 { tagsJson: { contains: q, mode: 'insensitive' } },
+                { brandName: { contains: q, mode: 'insensitive' } },
+                { sku: { contains: q, mode: 'insensitive' } },
+                { hsnCode: { contains: q, mode: 'insensitive' } },
+                { unitLabel: { contains: q, mode: 'insensitive' } },
               ],
             }
           : {}),
@@ -203,8 +216,8 @@ catalogRouter.get('/products', async (req, res, next) => {
 
 catalogRouter.get('/products/:id', async (req, res, next) => {
   try {
-    const product = await prisma.product.findUnique({
-      where: { id: req.params.id },
+    const product = await prisma.product.findFirst({
+      where: { id: req.params.id, isAvailable: true, vendor: { isApproved: true } },
     });
     if (!product) {
       res.status(404).json({ error: 'Product not found' });
@@ -224,15 +237,15 @@ catalogRouter.get('/home', async (_req, res, next) => {
         where: { isActive: true },
         orderBy: { sortOrder: 'asc' },
       }),
-      prisma.vendor.findMany({ where: { isApproved: true } }),
+      prisma.vendor.findMany({ where: { isApproved: true }, orderBy: { orderCount: 'desc' }, take: 60 }),
       prisma.product.findMany({
-        where: { isAvailable: true },
+        where: { isAvailable: true, vendor: { isApproved: true } },
         orderBy: { reviewCount: 'desc' },
         take: 12,
       }),
     ]);
 
-    const serializedVendors = vendors.map(serializeVendor);
+    const serializedVendors = vendors.map(v => serializeVendor(v));
     const popular = [...serializedVendors]
       .sort((a, b) => b.orderCount - a.orderCount)
       .slice(0, 6);

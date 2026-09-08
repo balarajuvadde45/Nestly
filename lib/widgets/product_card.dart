@@ -37,7 +37,9 @@ class ProductCard extends StatelessWidget {
           border: Border.all(color: AppColors.border.withValues(alpha: 0.6)),
         ),
         clipBehavior: Clip.antiAlias,
-        child: compact ? _compactBody(context, cart, qty) : _fullBody(context, cart, qty),
+        child: compact
+            ? _compactBody(context, cart, qty)
+            : _fullBody(context, cart, qty),
       ),
     );
   }
@@ -60,8 +62,10 @@ class ProductCard extends StatelessWidget {
                   top: 8,
                   left: 8,
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primary,
                       borderRadius: BorderRadius.circular(6),
@@ -104,7 +108,28 @@ class ProductCard extends StatelessWidget {
                   ],
                 ),
                 const Spacer(),
-                PriceText(price: product.price, mrp: product.mrp, fontSize: 13),
+                PriceText(
+                  price: product.unitPriceForQuantity(product.minCartQuantity),
+                  mrp: product.mrp,
+                  fontSize: 13,
+                ),
+                if (product.unitLabel != null ||
+                    product.minCartQuantity > 1) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    [
+                      if (product.unitLabel != null) product.unitLabel!,
+                      if (product.minCartQuantity > 1)
+                        'MOQ ${product.minCartQuantity}',
+                    ].join(' / '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: AppColors.textHint,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 8),
                 Align(
                   alignment: Alignment.centerRight,
@@ -158,7 +183,9 @@ class ProductCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 14),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ],
@@ -169,13 +196,20 @@ class ProductCard extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                      fontSize: 11, color: AppColors.textSecondary),
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Row(
                   children: [
                     PriceText(
-                        price: product.price, mrp: product.mrp, fontSize: 13),
+                      price: product.unitPriceForQuantity(
+                        product.minCartQuantity,
+                      ),
+                      mrp: product.mrp,
+                      fontSize: 13,
+                    ),
                     const Spacer(),
                     QuantityStepper(
                       quantity: qty,
@@ -200,13 +234,23 @@ class ProductCard extends StatelessWidget {
   }
 
   void _add(BuildContext context, CartProvider cart) {
+    if (!product.canOrder) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This quantity is unavailable')),
+      );
+      return;
+    }
     if (product.sizes.isNotEmpty) {
       context.push('/product/${product.id}');
       return;
     }
     final catalog = context.read<CatalogProvider>();
     final vendor = catalog.vendorById(product.vendorId);
-    final ok = cart.addItem(product, vendor: vendor);
+    final ok = cart.addItem(
+      product,
+      quantity: product.minCartQuantity,
+      vendor: vendor,
+    );
     if (!ok) {
       showDialog(
         context: context,
@@ -218,11 +262,17 @@ class ProductCard extends StatelessWidget {
           ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('No')),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('No'),
+            ),
             ElevatedButton(
               onPressed: () {
-                cart.addItem(product, forceReplace: true, vendor: vendor);
+                cart.addItem(
+                  product,
+                  quantity: product.minCartQuantity,
+                  forceReplace: true,
+                  vendor: vendor,
+                );
                 Navigator.pop(ctx);
               },
               child: const Text('Yes, replace'),

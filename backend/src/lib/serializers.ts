@@ -20,6 +20,22 @@ function parseJsonArray(raw: string | null | undefined): string[] {
   }
 }
 
+function parseJsonObjectArray(
+  raw: string | null | undefined,
+): Array<Record<string, unknown>> {
+  if (!raw) return [];
+  try {
+    const v = JSON.parse(raw);
+    return Array.isArray(v)
+      ? v.filter((entry): entry is Record<string, unknown> => {
+          return entry != null && typeof entry === 'object' && !Array.isArray(entry);
+        })
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 export function serializeUser(u: User, addresses?: Address[]) {
   return {
     id: u.id,
@@ -59,7 +75,7 @@ export function serializeCategory(c: ShopCategory) {
   };
 }
 
-export function serializeVendor(v: Vendor) {
+export function serializeVendor(v: Vendor, privateFields = false) {
   return {
     id: v.id,
     ownerId: v.ownerId,
@@ -75,6 +91,21 @@ export function serializeVendor(v: Vendor) {
     distanceKm: v.distanceKm,
     area: v.area,
     city: v.city,
+    businessAddress: v.businessAddress,
+    pincode: v.pincode,
+    premisesType: v.premisesType,
+    supportPhone: v.supportPhone,
+    supportEmail: v.supportEmail,
+    gstin: v.gstin,
+    ...(privateFields ? { pan: v.pan, bankAccountLast4: v.bankAccountLast4 } : {}),
+    fssaiLicense: v.fssaiLicense,
+    fssaiExpiry: v.fssaiExpiry?.toISOString() ?? null,
+    kycStatus: v.kycStatus,
+    bankVerified: v.bankVerified,
+    fulfillmentModes: parseJsonArray(v.fulfillmentModesJson),
+    serviceRadiusKm: v.serviceRadiusKm,
+    gstInvoiceAvailable: v.gstInvoiceAvailable,
+    acceptsWholesale: v.acceptsWholesale,
     categories: parseJsonArray(v.categoriesJson),
     tags: parseJsonArray(v.tagsJson),
     isOpen: v.isOpen,
@@ -98,6 +129,30 @@ export function serializeProduct(p: Product) {
     description: p.description,
     price: p.price,
     mrp: p.mrp,
+    brandName: p.brandName,
+    sku: p.sku,
+    unitLabel: p.unitLabel,
+    minOrderQuantity: p.minOrderQuantity,
+    casePackQuantity: p.casePackQuantity,
+    maxOrderQuantity: p.maxOrderQuantity,
+    stockQuantity: p.stockQuantity,
+    hsnCode: p.hsnCode,
+    gstRate: p.gstRate,
+    batchNumber: p.batchNumber,
+    manufactureDate: p.manufactureDate?.toISOString() ?? null,
+    expiryDate: p.expiryDate?.toISOString() ?? null,
+    shelfLifeDays: p.shelfLifeDays,
+    manufacturerName: p.manufacturerName,
+    packerName: p.packerName,
+    originCountry: p.originCountry,
+    fssaiLicense: p.fssaiLicense,
+    isReturnable: p.isReturnable,
+    returnWindowDays: p.returnWindowDays,
+    madeToOrder: p.madeToOrder,
+    dispatchTimeDays: p.dispatchTimeDays,
+    wholesaleTiers: parseJsonObjectArray(p.wholesaleTiersJson),
+    colors: parseJsonArray(p.colorsJson),
+    material: p.material,
     imageUrl: p.imageUrl,
     type: p.type,
     isVeg: p.isVeg,
@@ -129,6 +184,10 @@ export function serializeOrderItem(i: OrderItem) {
     productImage: i.productImage,
     unitPrice: i.unitPrice,
     quantity: i.quantity,
+    unitLabel: i.unitLabel,
+    hsnCode: i.hsnCode,
+    gstRate: i.gstRate,
+    lineTax: i.lineTax,
     selectedSize: i.selectedSize,
     specialInstructions: i.specialInstructions,
     isVeg: i.isVeg,
@@ -163,7 +222,9 @@ export function serializeOrder(
     vendorLat: o.vendor?.lat ?? null,
     vendorLng: o.vendor?.lng ?? null,
     addressId: o.addressId,
-    address: o.address ? serializeAddress(o.address) : null,
+    address: o.addressSnapshotJson
+      ? JSON.parse(o.addressSnapshotJson) as Record<string, unknown>
+      : o.address ? serializeAddress(o.address) : null,
     status: o.status,
     paymentMethod: o.paymentMethod,
     paymentStatus: o.paymentStatus,
@@ -174,6 +235,10 @@ export function serializeOrder(
     discount: o.discount,
     grandTotal: o.grandTotal,
     couponCode: o.couponCode,
+    fulfillmentMode: o.fulfillmentMode,
+    invoiceRequired: o.invoiceRequired,
+    buyerGstin: o.buyerGstin,
+    sellerGstin: o.sellerGstin,
     deliveryPartner: o.deliveryPartner,
     riderLat: o.riderLat,
     riderLng: o.riderLng,

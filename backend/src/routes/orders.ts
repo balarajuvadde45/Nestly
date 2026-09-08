@@ -1,391 +1,183 @@
+import { createHash } from 'crypto';
 import { Router } from 'express';
+import { Prisma } from '@prisma/client';
 import { z } from 'zod';
-import {
-  OrderStatus,
-  PaymentMethod,
-  Role,
-} from '@prisma/client';
 import { prisma } from '../lib/prisma';
-import { serializeOrder } from '../lib/serializers';
-import {
-  AuthedRequest,
-  requireAuth,
-  requireRole,
-} from '../middleware/auth';
+import { serializeOrder, serializeAddress } from '../lib/serializers';
+import { AuthedRequest, requireAuth } from '../middleware/auth';
 import { getIo } from '../socket';
-import { env } from '../lib/env';
+import { parseWholesaleTiers, priceForQuantity, safeJsonArray } from '../lib/marketplace';
+import { orderInclude, transitionOrder } from '../lib/order-lifecycle';
+import { fromPaise, toPaise, totals } from '../lib/pricing';
 
 export const ordersRouter = Router();
-
+ordersRouter.use(requireAuth);
 const placeSchema = z.object({
-  vendorId: z.string(),
-  addressId: z.string(),
-  // Soft launch: Cash on Delivery only.
-  paymentMethod: z.enum(['COD']).default('COD'),
-  couponCode: z.string().optional(),
-  notes: z.string().optional(),
-  items: z
-    .array(
-      z.object({
-        productId: z.string(),
-        quantity: z.number().int().min(1),
-        selectedSize: z.string().optional(),
-        specialInstructions: z.string().optional(),
-      }),
-    )
-    .min(1),
-});
+  vendorId: z.string().min(1).max(100), addressId: z.string().min(1).max(100),
+  paymentMethod: z.literal('COD').default('COD'),
+  notes: z.string().max(500).optional(),
+  fulfillmentMode: z.literal('LOCAL_DELIVERY').default('LOCAL_DELIVERY'),
+  items: z.array(z.object({
+    productId: z.string().min(1).max(100), quantity: z.number().int().min(1).max(10000),
+    selectedSize: z.string().max(50).optional(), specialInstructions: z.string().max(500).optional(),
+  })).min(1).max(100),
+}).strict();
+type Input = z.infer<typeof placeSchema>;
+const hash = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+const fail = (message: string, status = 400): never => { throw Object.assign(new Error(message), { status }); };
 
-function computeCoupon(
-  code: string | undefined,
-  itemTotal: number,
-): { discount: number; error?: string } {
-  if (!code) return { discount: 0 };
-  const c = code.trim().toUpperCase();
-  if (c === 'NESTLY20') return { discount: Math.min(itemTotal * 0.2, 100) };
-  if (c === 'FLAT50') {
-    if (itemTotal < 199) return { discount: 0, error: 'Minimum order ₹199' };
-    return { discount: 50 };
-  }
-  if (c === 'FIRST100') return { discount: Math.min(100, itemTotal) };
-  return { discount: 0, error: 'Invalid coupon' };
-}
-
-ordersRouter.post(
-  '/',
-  requireAuth,
-  requireRole(Role.CUSTOMER, Role.ADMIN, Role.SELLER),
-  async (req: AuthedRequest, res, next) => {
-    try {
-      const body = placeSchema.parse(req.body);
-      const vendor = await prisma.vendor.findUnique({
-        where: { id: body.vendorId },
-      });
-      if (!vendor || !vendor.isApproved) {
-        res.status(404).json({ error: 'Vendor not found' });
-        return;
-      }
-      const address = await prisma.address.findFirst({
-        where: { id: body.addressId, userId: req.user!.sub },
-      });
-      if (!address) {
-        res.status(400).json({ error: 'Invalid address' });
-        return;
-      }
-
-      const productIds = body.items.map((i) => i.productId);
-      const products = await prisma.product.findMany({
-        where: { id: { in: productIds }, vendorId: vendor.id },
-      });
-      if (products.length !== productIds.length) {
-        res.status(400).json({ error: 'Some products are invalid for this vendor' });
-        return;
-      }
-
-      const productMap = new Map(products.map((p) => [p.id, p]));
-      let itemTotal = 0;
-      const lineItems = body.items.map((i) => {
-        const p = productMap.get(i.productId)!;
-        itemTotal += p.price * i.quantity;
-        return {
-          productId: p.id,
-          productName: p.name,
-          productImage: p.imageUrl,
-          unitPrice: p.price,
-          quantity: i.quantity,
-          selectedSize: i.selectedSize,
-          specialInstructions: i.specialInstructions,
-          isVeg: p.isVeg,
-        };
-      });
-
-      const coupon = computeCoupon(body.couponCode, itemTotal);
-      if (coupon.error && body.couponCode) {
-        res.status(400).json({ error: coupon.error });
-        return;
-      }
-
-      const deliveryFee =
-        vendor.freeDelivery || itemTotal >= 199 ? 0 : 29;
-      const platformFee = 5;
-      const tax =
-        (itemTotal + deliveryFee + platformFee - coupon.discount) * 0.05;
-      const grandTotal = Math.max(
-        0,
-        itemTotal + deliveryFee + platformFee + tax - coupon.discount,
-      );
-
-      const order = await prisma.order.create({
-        data: {
-          customerId: req.user!.sub,
-          vendorId: vendor.id,
-          addressId: address.id,
-          paymentMethod: PaymentMethod.COD,
-          paymentStatus: 'PENDING',
-          itemTotal,
-          deliveryFee,
-          platformFee,
-          tax,
-          discount: coupon.discount,
-          grandTotal,
-          couponCode: body.couponCode?.toUpperCase(),
-          notes: body.notes,
-          estimatedDelivery: new Date(
-            Date.now() + (vendor.deliveryTimeMins + 10) * 60_000,
-          ),
-          items: { create: lineItems },
-          events: {
-            create: {
-              status: OrderStatus.PLACED,
-              message: 'Order placed successfully',
-            },
-          },
-        },
-        include: {
-          items: true,
-          events: true,
-          vendor: true,
-          address: true,
-        },
-      });
-
-      await prisma.vendor.update({
-        where: { id: vendor.id },
-        data: { orderCount: { increment: 1 } },
-      });
-
-      const payload = serializeOrder(order);
-      getIo()?.to(`user:${req.user!.sub}`).emit('order:updated', payload);
-      if (vendor.ownerId) {
-        getIo()?.to(`user:${vendor.ownerId}`).emit('order:new', payload);
-      }
-      getIo()?.to(`order:${order.id}`).emit('order:updated', payload);
-
-      // Local/dev only — sellers confirm orders in production.
-      if (env.isDev) {
-        setTimeout(() => void autoProgress(order.id, OrderStatus.CONFIRMED), 8000);
-        setTimeout(() => void autoProgress(order.id, OrderStatus.PREPARING), 20000);
-      }
-
-      res.status(201).json({ order: payload });
-    } catch (e) {
-      next(e);
-    }
-  },
-);
-
-async function autoProgress(orderId: string, status: OrderStatus) {
-  try {
-    const existing = await prisma.order.findUnique({ where: { id: orderId } });
-    if (
-      !existing ||
-      existing.status === OrderStatus.CANCELLED ||
-      existing.status === OrderStatus.DELIVERED
-    ) {
-      return;
-    }
-    // Only advance forward
-    const order: OrderStatus[] = [
-      OrderStatus.PLACED,
-      OrderStatus.CONFIRMED,
-      OrderStatus.PREPARING,
-      OrderStatus.OUT_FOR_DELIVERY,
-      OrderStatus.DELIVERED,
-    ];
-    if (order.indexOf(existing.status) >= order.indexOf(status)) return;
-
-    const messages: Record<string, string> = {
-      CONFIRMED: 'Seller confirmed your order',
-      PREPARING: 'Your order is being prepared',
-      OUT_FOR_DELIVERY: 'Rider is on the way',
-      DELIVERED: 'Order delivered',
+async function quote(tx: Prisma.TransactionClient, customerId: string, body: Input) {
+  const customer = await tx.user.findUnique({ where: { id: customerId } });
+  if (!customer || customer.deletedAt) fail('Account unavailable', 401);
+  const vendor = await tx.vendor.findUnique({ where: { id: body.vendorId } });
+  if (!vendor || !vendor.isApproved || !vendor.isOpen) return fail('Seller is unavailable');
+  if (!safeJsonArray(vendor.fulfillmentModesJson).includes('LOCAL_DELIVERY')) fail('Seller does not offer local delivery');
+  const address = await tx.address.findFirst({ where: { id: body.addressId, userId: customerId } });
+  if (!address) return fail('Choose a valid delivery address');
+  if (address.city.trim().toLowerCase() !== vendor.city.trim().toLowerCase()) fail('This seller does not deliver to the selected city');
+  if (!vendor.pincode || address.pincode !== vendor.pincode) fail('This seller delivers within their listed pincode');
+  const ids = [...new Set(body.items.map(i => i.productId))];
+  const products = await tx.product.findMany({ where: { id: { in: ids }, vendorId: vendor.id } });
+  if (products.length !== ids.length) fail('One or more items are unavailable');
+  const quantities = new Map<string, number>();
+  for (const item of body.items) quantities.set(item.productId, (quantities.get(item.productId) ?? 0) + item.quantity);
+  const lines = body.items.map(item => {
+    const product = products.find(p => p.id === item.productId)!;
+    const quantity = quantities.get(product.id)!;
+    if (!product.isAvailable || (product.expiryDate && product.expiryDate <= new Date())) fail(product.name + ' is unavailable');
+    if (item.quantity < product.minOrderQuantity ||
+        (product.casePackQuantity && item.quantity % product.casePackQuantity !== 0)) fail(product.name + ': check minimum quantity and case pack');
+    if (product.maxOrderQuantity && quantity > product.maxOrderQuantity) fail(product.name + ': maximum quantity exceeded');
+    if (product.stockQuantity != null && quantity > product.stockQuantity) fail(product.name + ': insufficient stock');
+    const sizes = safeJsonArray(product.sizesJson);
+    if ((sizes.length && !sizes.includes(item.selectedSize ?? '')) || (!sizes.length && item.selectedSize)) fail(product.name + ': select a valid size');
+    const unitPrice = fromPaise(toPaise(priceForQuantity(product.price, item.quantity, parseWholesaleTiers(product.wholesaleTiersJson))));
+    const gstRate = product.gstRate ?? 0;
+    if (product.mrp != null && unitPrice > product.mrp) fail(product.name + ': price exceeds MRP');
+    return {
+      productId: product.id, productName: product.name, productImage: product.imageUrl,
+      unitPrice, quantity: item.quantity, unitLabel: product.unitLabel,
+      hsnCode: product.hsnCode, gstRate,
+      lineTax: fromPaise(Math.round(toPaise(unitPrice) * item.quantity * gstRate / (100 + gstRate))),
+      selectedSize: item.selectedSize, specialInstructions: item.specialInstructions, isVeg: product.isVeg,
     };
-
-    const data: {
-      status: OrderStatus;
-      deliveryPartner?: string;
-      riderLat?: number;
-      riderLng?: number;
-    } = { status };
-
-    if (status === OrderStatus.OUT_FOR_DELIVERY) {
-      data.deliveryPartner = 'Ravi K.';
-      // Start near vendor
-      const vendor = await prisma.vendor.findUnique({
-        where: { id: existing.vendorId },
-      });
-      data.riderLat = vendor?.lat ?? 17.4486;
-      data.riderLng = vendor?.lng ?? 78.3908;
-    }
-
-    const updated = await prisma.order.update({
-      where: { id: orderId },
-      data: {
-        ...data,
-        events: {
-          create: {
-            status,
-            message: messages[status] || status,
-            lat: data.riderLat,
-            lng: data.riderLng,
-          },
-        },
-      },
-      include: {
-        items: true,
-        events: { orderBy: { createdAt: 'asc' } },
-        vendor: true,
-        address: true,
-      },
-    });
-
-    const payload = serializeOrder(updated);
-    getIo()?.to(`order:${orderId}`).emit('order:updated', payload);
-    getIo()?.to(`user:${updated.customerId}`).emit('order:updated', payload);
-  } catch (e) {
-    console.error('autoProgress failed', e);
-  }
+  });
+  const amounts = totals(lines, vendor.freeDelivery);
+  if (vendor.minOrder != null && amounts.itemTotal < vendor.minOrder) fail('Minimum order is Rs ' + vendor.minOrder);
+  const addressSnapshot = serializeAddress(address);
+  const quoteHash = hash({ body, lines, amounts, address: addressSnapshot, sellerGstin: vendor.gstin });
+  return { vendor, address, addressSnapshot, products, quantities, lines, amounts, quoteHash };
 }
 
-ordersRouter.get('/', requireAuth, async (req: AuthedRequest, res, next) => {
+ordersRouter.post('/quote', async (req: AuthedRequest, res, next) => {
   try {
+    const body = placeSchema.parse(req.body);
+    const result = await quote(prisma, req.user!.sub, body);
+    res.json({ quote: { ...result.amounts, items: result.lines, quoteHash: result.quoteHash } });
+  } catch (e) { next(e); }
+});
+
+ordersRouter.post('/', async (req: AuthedRequest, res, next) => {
+  try {
+    const { idempotencyKey, quoteHash, ...raw } = z.object({
+      idempotencyKey: z.string().uuid(), quoteHash: z.string().regex(/^[a-f0-9]{64}$/),
+    }).passthrough().parse(req.body);
+    const body = placeSchema.parse(raw);
+    const customerId = req.user!.sub;
+    const requestHash = hash({ body, quoteHash });
+    const key = { customerId_idempotencyKey: { customerId, idempotencyKey } };
+    const replay = async () => {
+      const previous = await prisma.order.findUnique({ where: key, include: orderInclude });
+      if (previous && previous.requestHash !== requestHash) fail('Checkout key was already used for a different request', 409);
+      return previous;
+    };
+    const previous = await replay();
+    if (previous) { res.json({ order: serializeOrder(previous) }); return; }
+    let order;
+    try {
+      order = await prisma.$transaction(async tx => {
+        const result = await quote(tx, customerId, body);
+        if (result.quoteHash !== quoteHash) fail('Prices or availability changed. Review your order again.', 409);
+        for (const product of result.products) {
+          if (product.stockQuantity == null) continue;
+          const quantity = result.quantities.get(product.id)!;
+          const updated = await tx.product.updateMany({
+            where: { id: product.id, stockQuantity: { gte: quantity }, isAvailable: true },
+            data: { stockQuantity: { decrement: quantity } },
+          });
+          if (updated.count !== 1) fail('Stock changed. Review your order again.', 409);
+        }
+        const created = await tx.order.create({
+          data: {
+            customerId, vendorId: result.vendor.id, addressId: result.address.id,
+            addressSnapshotJson: JSON.stringify(result.addressSnapshot),
+            idempotencyKey, requestHash, paymentMethod: 'COD', paymentStatus: 'PENDING',
+            ...result.amounts, fulfillmentMode: body.fulfillmentMode, sellerGstin: result.vendor.gstin,
+            notes: body.notes,
+            estimatedDelivery: new Date(Date.now() + result.vendor.deliveryTimeMins * 60000 + Math.max(0, ...result.products.map(p => p.dispatchTimeDays ?? 0)) * 86400000),
+            items: { create: result.lines },
+            events: { create: { status: 'PLACED', message: 'Order placed' } },
+          }, include: orderInclude,
+        });
+        await tx.vendor.update({ where: { id: result.vendor.id }, data: { orderCount: { increment: 1 } } });
+        return created;
+      }, { isolationLevel: 'Serializable' });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && ['P2002', 'P2034'].includes(e.code)) {
+        const existing = await replay();
+        if (existing) { res.json({ order: serializeOrder(existing) }); return; }
+      }
+      throw e;
+    }
+    const payload = serializeOrder(order);
+    getIo()?.to('user:' + customerId).emit('order:updated', payload);
+    if (order.vendor.ownerId) getIo()?.to('user:' + order.vendor.ownerId).emit('order:new', payload);
+    res.status(201).json({ order: payload });
+  } catch (e) { next(e); }
+});
+
+ordersRouter.get('/', async (req: AuthedRequest, res, next) => {
+  try {
+    const page = z.coerce.number().int().min(1).max(10000).default(1).parse(req.query.page);
     const orders = await prisma.order.findMany({
-      where: { customerId: req.user!.sub },
-      include: {
-        items: true,
-        events: { orderBy: { createdAt: 'asc' } },
-        vendor: true,
-        address: true,
-      },
-      orderBy: { placedAt: 'desc' },
+      where: { customerId: req.user!.sub }, include: orderInclude,
+      orderBy: [{ placedAt: 'desc' }, { id: 'desc' }], take: 50, skip: (page - 1) * 50,
     });
-    res.json({ orders: orders.map(serializeOrder) });
-  } catch (e) {
-    next(e);
-  }
+    res.json({ orders: orders.map(serializeOrder), page, hasMore: orders.length === 50 });
+  } catch (e) { next(e); }
 });
 
-ordersRouter.get('/:id', requireAuth, async (req: AuthedRequest, res, next) => {
+ordersRouter.get('/:id', async (req: AuthedRequest, res, next) => {
   try {
-    const order = await prisma.order.findUnique({
-      where: { id: String(req.params.id) },
-      include: {
-        items: true,
-        events: { orderBy: { createdAt: 'asc' } },
-        vendor: true,
-        address: true,
-      },
+    const order = await prisma.order.findFirst({
+      where: { id: String(req.params.id), ...(req.user!.role === 'ADMIN' ? {} : {
+        OR: [{ customerId: req.user!.sub }, { vendor: { ownerId: req.user!.sub } }],
+      }) }, include: orderInclude,
     });
-    if (!order) {
-      res.status(404).json({ error: 'Order not found' });
-      return;
-    }
-    // Allow customer, seller owner, or admin
-    if (order.customerId !== req.user!.sub && req.user!.role !== Role.ADMIN) {
-      const vendor = await prisma.vendor.findUnique({
-        where: { id: order.vendorId },
-      });
-      if (vendor?.ownerId !== req.user!.sub) {
-        res.status(403).json({ error: 'Forbidden' });
-        return;
-      }
-    }
+    if (!order) { res.status(404).json({ error: 'Order not found' }); return; }
     res.json({ order: serializeOrder(order) });
-  } catch (e) {
-    next(e);
-  }
+  } catch (e) { next(e); }
 });
-
-ordersRouter.post(
-  '/:id/cancel',
-  requireAuth,
-  async (req: AuthedRequest, res, next) => {
-    try {
-      const order = await prisma.order.findUnique({
-        where: { id: String(req.params.id) },
-      });
-      if (!order || order.customerId !== req.user!.sub) {
-        res.status(404).json({ error: 'Order not found' });
-        return;
-      }
-      const terminalStatuses: OrderStatus[] = [
-        OrderStatus.OUT_FOR_DELIVERY,
-        OrderStatus.DELIVERED,
-        OrderStatus.CANCELLED,
-      ];
-      if (terminalStatuses.includes(order.status)) {
-        res.status(400).json({ error: 'Order cannot be cancelled now' });
-        return;
-      }
-      const updated = await prisma.order.update({
-        where: { id: order.id },
-        data: {
-          status: OrderStatus.CANCELLED,
-          events: {
-            create: {
-              status: OrderStatus.CANCELLED,
-              message: 'Order cancelled by customer',
-            },
-          },
-        },
-        include: {
-          items: true,
-          events: { orderBy: { createdAt: 'asc' } },
-          vendor: true,
-          address: true,
-        },
-      });
-      const payload = serializeOrder(updated);
-      getIo()?.to(`order:${order.id}`).emit('order:updated', payload);
-      res.json({ order: payload });
-    } catch (e) {
-      next(e);
-    }
-  },
-);
-
-/** Customer/seller: get live tracking snapshot */
-ordersRouter.get(
-  '/:id/tracking',
-  requireAuth,
-  async (req: AuthedRequest, res, next) => {
-    try {
-      const order = await prisma.order.findUnique({
-        where: { id: String(req.params.id) },
-        include: {
-          vendor: true,
-          address: true,
-          events: { orderBy: { createdAt: 'asc' } },
-        },
-      });
-      if (!order) {
-        res.status(404).json({ error: 'Order not found' });
-        return;
-      }
-      res.json({
-        orderId: order.id,
-        status: order.status,
-        deliveryPartner: order.deliveryPartner,
-        rider: {
-          lat: order.riderLat,
-          lng: order.riderLng,
-        },
-        vendor: {
-          lat: order.vendor.lat,
-          lng: order.vendor.lng,
-          name: order.vendor.name,
-        },
-        dropoff: {
-          lat: order.address.lat ?? 17.44,
-          lng: order.address.lng ?? 78.39,
-          label: order.address.label,
-          address: `${order.address.fullAddress}, ${order.address.area}`,
-        },
-        estimatedDelivery: order.estimatedDelivery?.toISOString() ?? null,
-        events: order.events,
-      });
-    } catch (e) {
-      next(e);
-    }
-  },
-);
+ordersRouter.post('/:id/cancel', async (req: AuthedRequest, res, next) => {
+  try {
+    const order = await transitionOrder(
+      { id: String(req.params.id), customerId: req.user!.sub }, 'CANCELLED', 'Cancelled by customer', true,
+    );
+    const payload = serializeOrder(order);
+    getIo()?.to('order:' + order.id).emit('order:updated', payload);
+    if (order.vendor.ownerId) getIo()?.to('user:' + order.vendor.ownerId).emit('order:updated', payload);
+    res.json({ order: payload });
+  } catch (e) { next(e); }
+});
+ordersRouter.get('/:id/tracking', async (req: AuthedRequest, res, next) => {
+  try {
+    const order = await prisma.order.findFirst({
+      where: { id: String(req.params.id), ...(req.user!.role === 'ADMIN' ? {} : {
+        OR: [{ customerId: req.user!.sub }, { vendor: { ownerId: req.user!.sub } }],
+      }) }, include: orderInclude,
+    });
+    if (!order) { res.status(404).json({ error: 'Order not found' }); return; }
+    res.json({ order: serializeOrder(order), orderId: order.id, status: order.status,
+      rider: { lat: order.riderLat, lng: order.riderLng } });
+  } catch (e) { next(e); }
+});

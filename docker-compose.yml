@@ -17,7 +17,7 @@ services:
     ports:
       # host 5433 -> container 5432, so this never clashes with a Postgres
       # you may already run locally on 5432 (e.g. your current UAT setup).
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -30,7 +30,7 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redisdata:/data
     healthcheck:
@@ -52,14 +52,14 @@ services:
       redis:
         condition: service_healthy
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       PORT: "4000"
       DATABASE_URL: postgresql://nestly:nestly@postgres:5432/nestly?schema=public
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: local_dev_only_secret_2026
-      CORS_ORIGIN: "*"
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in your shell}
+      CORS_ORIGIN: "http://localhost:8080"
     ports:
-      - "4000:4000"
+      - "127.0.0.1:4000:4000"
 
 volumes:
   pgdata:

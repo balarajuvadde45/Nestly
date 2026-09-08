@@ -15,6 +15,10 @@ const level =
  */
 export const logger = pino({
   level,
+  redact: {
+    paths: ['req.headers.authorization', 'req.headers.cookie', 'res.headers["set-cookie"]', 'password', 'otp', 'token'],
+    censor: '[REDACTED]',
+  },
   ...(isProd || isTest
     ? {}
     : {

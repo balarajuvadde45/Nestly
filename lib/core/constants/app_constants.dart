@@ -3,7 +3,7 @@ class AppConstants {
 
   static const String appName = 'Nestly';
   static const String appTagline =
-      'Food · Pickles · Clothes · Wisdom — from home to home';
+      'Local food, pickles, boutiques and wholesale';
   static const String currency = '₹';
   static const String defaultCity = 'Hyderabad';
   static const String defaultArea = 'Madhapur';

@@ -7,7 +7,7 @@ import '../models/vendor.dart';
 import '../services/api_client.dart';
 import '../services/api_mappers.dart';
 
-/// Live catalog from Nestly API only (no client-side mock data).
+/// Catalog and search results from the Nestly API.
 class CatalogProvider extends ChangeNotifier {
   CatalogProvider(this._api);
 
@@ -67,8 +67,7 @@ class CatalogProvider extends ChangeNotifier {
       final online = await _api.healthCheck();
       if (!online) {
         _loadedFromApi = false;
-        _error =
-            'Cannot reach Nestly API. Start the backend and check API_BASE_URL.';
+        _error = 'Unable to load shops right now. Please try again shortly.';
         _clearCatalog();
         return;
       }
@@ -153,8 +152,7 @@ class CatalogProvider extends ChangeNotifier {
   Future<Vendor?> fetchVendor(String id) async {
     try {
       final res = await _api.get('/api/catalog/vendors/$id');
-      final v =
-          vendorFromJson(Map<String, dynamic>.from(res['vendor'] as Map));
+      final v = vendorFromJson(Map<String, dynamic>.from(res['vendor'] as Map));
       final i = _vendors.indexWhere((x) => x.id == id);
       if (i >= 0) {
         _vendors[i] = v;
@@ -199,11 +197,10 @@ class CatalogProvider extends ChangeNotifier {
     notifyListeners();
     final sw = Stopwatch()..start();
     try {
-      final res = await _api.get('/api/catalog/search', query: {
-        'q': q,
-        if (_vegOnly) 'vegOnly': 'true',
-        'limit': '32',
-      });
+      final res = await _api.get(
+        '/api/catalog/search',
+        query: {'q': q, if (_vegOnly) 'vegOnly': 'true', 'limit': '32'},
+      );
       if (seq != _searchSeq || q != _searchQuery.trim()) return;
 
       _searchVendors = (res['vendors'] as List? ?? [])
@@ -213,7 +210,8 @@ class CatalogProvider extends ChangeNotifier {
           .map((e) => productFromJson(Map<String, dynamic>.from(e as Map)))
           .toList();
       _useServerSearch = true;
-      _lastSearchMs = (res['tookMs'] as num?)?.toInt() ?? sw.elapsedMilliseconds;
+      _lastSearchMs =
+          (res['tookMs'] as num?)?.toInt() ?? sw.elapsedMilliseconds;
 
       // Merge into local cache for detail navigation
       for (final v in _searchVendors) {
@@ -284,18 +282,21 @@ class CatalogProvider extends ChangeNotifier {
     var list = List<Vendor>.from(_vendors);
 
     if (_selectedCategoryId != null) {
-      list =
-          list.where((v) => v.categories.contains(_selectedCategoryId)).toList();
+      list = list
+          .where((v) => v.categories.contains(_selectedCategoryId))
+          .toList();
     }
 
     if (_searchQuery.isNotEmpty) {
       final q = _searchQuery.toLowerCase();
       list = list
-          .where((v) =>
-              v.name.toLowerCase().contains(q) ||
-              v.tagline.toLowerCase().contains(q) ||
-              v.tags.any((t) => t.toLowerCase().contains(q)) ||
-              v.area.toLowerCase().contains(q))
+          .where(
+            (v) =>
+                v.name.toLowerCase().contains(q) ||
+                v.tagline.toLowerCase().contains(q) ||
+                v.tags.any((t) => t.toLowerCase().contains(q)) ||
+                v.area.toLowerCase().contains(q),
+          )
           .toList();
     }
 
@@ -339,10 +340,12 @@ class CatalogProvider extends ChangeNotifier {
     if (_searchQuery.isNotEmpty) {
       final q = _searchQuery.toLowerCase();
       list = list
-          .where((p) =>
-              p.name.toLowerCase().contains(q) ||
-              p.description.toLowerCase().contains(q) ||
-              p.tags.any((t) => t.toLowerCase().contains(q)))
+          .where(
+            (p) =>
+                p.name.toLowerCase().contains(q) ||
+                p.description.toLowerCase().contains(q) ||
+                p.tags.any((t) => t.toLowerCase().contains(q)),
+          )
           .toList();
     }
 

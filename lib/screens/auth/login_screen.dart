@@ -7,7 +7,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/utils/responsive.dart';
 import '../../providers/auth_provider.dart';
 
-/// Production Login + Sign up (phone OTP, email, Continue with Google).
+/// Production Login + Sign up (verified phone and email).
 class LoginScreen extends StatefulWidget {
   final bool sellerMode;
   final String? nextPath;
@@ -38,7 +38,9 @@ class _LoginScreenState extends State<LoginScreen>
   bool _obscureSignup = true;
   bool _obscureConfirm = true;
   int _resendSeconds = 0;
-  String? _devOtpHint;
+  String? _otpHint;
+  final _signupOtp = TextEditingController();
+  bool _signupOtpSent = false;
 
   @override
   void initState() {
@@ -53,6 +55,7 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   void dispose() {
+    _signupOtp.dispose();
     _modeTabs.dispose();
     _methodTabs.dispose();
     _phoneController.dispose();
@@ -90,11 +93,7 @@ class _LoginScreenState extends State<LoginScreen>
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              AppColors.primarySoft,
-              AppColors.background,
-              Colors.white,
-            ],
+            colors: [AppColors.primarySoft, AppColors.background, Colors.white],
           ),
         ),
         child: SafeArea(
@@ -136,8 +135,11 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                       ],
                     ),
-                    child: const Icon(Icons.home_work_rounded,
-                        color: Colors.white, size: 38),
+                    child: const Icon(
+                      Icons.home_work_rounded,
+                      color: Colors.white,
+                      size: 38,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -155,7 +157,7 @@ class _LoginScreenState extends State<LoginScreen>
                 const SizedBox(height: 6),
                 Text(
                   widget.sellerMode
-                      ? 'Sign in to manage your home business'
+                      ? 'Sign in to manage your business'
                       : 'Login or create an account to order & sell',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
@@ -188,7 +190,9 @@ class _LoginScreenState extends State<LoginScreen>
                         indicatorColor: AppColors.primary,
                         indicatorWeight: 2.5,
                         labelStyle: const TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 15),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
                         tabs: const [
                           Tab(text: 'Login'),
                           Tab(text: 'Sign up'),
@@ -240,8 +244,10 @@ class _LoginScreenState extends State<LoginScreen>
             ),
             indicatorSize: TabBarIndicatorSize.tab,
             dividerColor: Colors.transparent,
-            labelStyle:
-                const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+            labelStyle: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
             tabs: const [
               Tab(text: 'Phone OTP'),
               Tab(text: 'Email'),
@@ -291,7 +297,7 @@ class _LoginScreenState extends State<LoginScreen>
             decoration: InputDecoration(
               labelText: 'Enter 6-digit OTP',
               prefixIcon: const Icon(Icons.lock_outline_rounded),
-              helperText: _devOtpHint,
+              helperText: _otpHint,
               helperMaxLines: 2,
             ),
           ),
@@ -338,7 +344,9 @@ class _LoginScreenState extends State<LoginScreen>
                   height: 22,
                   width: 22,
                   child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white),
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 )
               : Text(_otpSent ? 'Verify & continue' : 'Send OTP'),
         ),
@@ -356,9 +364,7 @@ class _LoginScreenState extends State<LoginScreen>
     if (res != null) {
       setState(() {
         _otpSent = true;
-        _devOtpHint = res['devOtp'] != null
-            ? 'Dev OTP: ${res['devOtp']} (local only)'
-            : 'OTP sent to your mobile number.';
+        _otpHint = 'OTP sent to your mobile number.';
       });
       _startResendTimer();
       _toast('OTP sent to +91 ${_phoneController.text}');
@@ -390,7 +396,8 @@ class _LoginScreenState extends State<LoginScreen>
             prefixIcon: const Icon(Icons.lock_outline_rounded),
             suffixIcon: IconButton(
               icon: Icon(
-                  _obscure ? Icons.visibility_outlined : Icons.visibility_off),
+                _obscure ? Icons.visibility_outlined : Icons.visibility_off,
+              ),
               onPressed: () => setState(() => _obscure = !_obscure),
             ),
           ),
@@ -419,7 +426,9 @@ class _LoginScreenState extends State<LoginScreen>
                   height: 22,
                   width: 22,
                   child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white),
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 )
               : const Text('Login'),
         ),
@@ -467,12 +476,14 @@ class _LoginScreenState extends State<LoginScreen>
           controller: _signupPasswordController,
           obscureText: _obscureSignup,
           decoration: InputDecoration(
-            labelText: 'Password (min 6)',
+            labelText: 'Password (min 12)',
             prefixIcon: const Icon(Icons.lock_outline_rounded),
             suffixIcon: IconButton(
-              icon: Icon(_obscureSignup
-                  ? Icons.visibility_outlined
-                  : Icons.visibility_off),
+              icon: Icon(
+                _obscureSignup
+                    ? Icons.visibility_outlined
+                    : Icons.visibility_off,
+              ),
               onPressed: () => setState(() => _obscureSignup = !_obscureSignup),
             ),
           ),
@@ -485,12 +496,50 @@ class _LoginScreenState extends State<LoginScreen>
             labelText: 'Confirm password',
             prefixIcon: const Icon(Icons.lock_outline_rounded),
             suffixIcon: IconButton(
-              icon: Icon(_obscureConfirm
-                  ? Icons.visibility_outlined
-                  : Icons.visibility_off),
+              icon: Icon(
+                _obscureConfirm
+                    ? Icons.visibility_outlined
+                    : Icons.visibility_off,
+              ),
               onPressed: () =>
                   setState(() => _obscureConfirm = !_obscureConfirm),
             ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _signupOtp,
+          keyboardType: TextInputType.number,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(6),
+          ],
+          decoration: const InputDecoration(
+            labelText: 'Phone verification code',
+          ),
+        ),
+        TextButton(
+          onPressed: auth.isLoading || _resendSeconds > 0
+              ? null
+              : () async {
+                  final result = await auth.sendPhoneOtp(
+                    _signupPhoneController.text,
+                  );
+                  if (!mounted) return;
+                  if (result == null) {
+                    _toast(auth.error ?? 'Unable to send code');
+                    return;
+                  }
+                  setState(() => _signupOtpSent = true);
+                  _startResendTimer();
+                  _toast('Verification code sent');
+                },
+          child: Text(
+            _resendSeconds > 0
+                ? 'Resend in ${_resendSeconds}s'
+                : _signupOtpSent
+                ? 'Resend code'
+                : 'Verify phone',
           ),
         ),
         const SizedBox(height: 18),
@@ -515,8 +564,8 @@ class _LoginScreenState extends State<LoginScreen>
                     _toast('Enter a valid 10-digit mobile number');
                     return;
                   }
-                  if (pass.length < 6) {
-                    _toast('Password must be at least 6 characters');
+                  if (pass.length < 12) {
+                    _toast('Password must be at least 12 characters');
                     return;
                   }
                   if (pass != confirm) {
@@ -528,6 +577,7 @@ class _LoginScreenState extends State<LoginScreen>
                     email: email,
                     phone: phone,
                     password: pass,
+                    otp: _signupOtp.text,
                   );
                   if (!mounted) return;
                   if (ok) {
@@ -541,7 +591,9 @@ class _LoginScreenState extends State<LoginScreen>
                   height: 22,
                   width: 22,
                   child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white),
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 )
               : const Text('Create account'),
         ),
@@ -578,8 +630,6 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   void _toast(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg)),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 }

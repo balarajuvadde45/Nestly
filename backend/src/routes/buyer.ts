@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { Router } from 'express';
 import { z } from 'zod';
 import { ApplicationStatus, Role, VendorType } from '@prisma/client';
@@ -5,6 +6,12 @@ import { prisma } from '../lib/prisma';
 import { signToken } from '../lib/auth';
 import { serializeUser, serializeVendor } from '../lib/serializers';
 import { AuthedRequest, requireAuth } from '../middleware/auth';
+import {
+  defaultFulfillmentModes,
+  fulfillmentModeSchema,
+  normalizeString,
+  vendorTypeSchema,
+} from '../lib/marketplace';
 
 /**
  * Buyer-side API (Nestly shop).
@@ -47,13 +54,22 @@ buyerRouter.post('/open-business', async (req: AuthedRequest, res, next) => {
       businessName: z.string().min(2),
       tagline: z.string().min(2).optional(),
       description: z.string().min(10).optional(),
-      businessType: z
-        .enum(['HOME_COOK', 'CLOUD_KITCHEN', 'HOME_BUSINESS', 'BOUTIQUE'])
-        .default('HOME_BUSINESS'),
+      businessType: vendorTypeSchema.default('HOME_BUSINESS'),
       area: z.string().min(2),
       city: z.string().default('Hyderabad'),
       phone: z.string().optional(),
       categories: z.array(z.string()).optional(),
+      businessAddress: z.string().optional(),
+      pincode: z.string().optional(),
+      premisesType: z.string().default('BUSINESS_PLACE'),
+      gstin: z.string().optional(),
+      pan: z.string().optional(),
+      fssaiLicense: z.string().optional(),
+      supportPhone: z.string().optional(),
+      supportEmail: z.string().email().optional(),
+      fulfillmentModes: z.array(fulfillmentModeSchema).optional(),
+      gstInvoiceAvailable: z.boolean().default(false),
+      acceptsWholesale: z.boolean().default(false),
     });
     const body = schema.parse(req.body);
     const userId = req.user!.sub;
@@ -97,14 +113,16 @@ buyerRouter.post('/open-business', async (req: AuthedRequest, res, next) => {
 
     const vendorType = body.businessType as VendorType;
     const tagline =
-      body.tagline?.trim() || 'Proudly selling from home on Nestly';
+      body.tagline?.trim() || 'Local business on Nestly';
     const description =
       body.description?.trim() ||
-      `${body.businessName} is a home business on Nestly. Update your story in Seller Dashboard.`;
+      `${body.businessName} is a local business on Nestly.`;
 
+    const vendorId = randomUUID();
     const [vendor] = await prisma.$transaction([
       prisma.vendor.create({
         data: {
+          id: vendorId,
           ownerId: userId,
           name: body.businessName.trim(),
           tagline,
@@ -112,13 +130,26 @@ buyerRouter.post('/open-business', async (req: AuthedRequest, res, next) => {
           type: vendorType,
           area: body.area.trim(),
           city: body.city.trim(),
-          imageUrl:
-            'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=400',
-          coverUrl:
-            'https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=800',
+          businessAddress: normalizeString(body.businessAddress),
+          pincode: normalizeString(body.pincode),
+          premisesType: body.premisesType,
+          supportPhone: normalizeString(body.supportPhone ?? body.phone),
+          supportEmail: normalizeString(body.supportEmail ?? user.email),
+          gstin: normalizeString(body.gstin),
+          pan: normalizeString(body.pan),
+          fssaiLicense: normalizeString(body.fssaiLicense),
+          fulfillmentModesJson: JSON.stringify(
+            body.fulfillmentModes?.length
+              ? body.fulfillmentModes
+              : defaultFulfillmentModes(body.businessType),
+          ),
+          gstInvoiceAvailable: body.gstInvoiceAvailable,
+          acceptsWholesale: body.acceptsWholesale,
+          imageUrl: '',
+          coverUrl: '',
           categoriesJson: JSON.stringify(body.categories ?? []),
-          tagsJson: JSON.stringify(['Home business']),
-          isApproved: true,
+          tagsJson: JSON.stringify([]),
+          isApproved: false,
           isOpen: true,
           rating: 0,
           reviewCount: 0,
@@ -129,11 +160,12 @@ buyerRouter.post('/open-business', async (req: AuthedRequest, res, next) => {
         where: { id: userId },
         data: {
           role: Role.SELLER,
-          ...(body.phone ? { phone: body.phone.trim() } : {}),
+
         },
       }),
       prisma.sellerApplication.create({
         data: {
+          vendorId,
           applicantName: user.name,
           businessName: body.businessName.trim(),
           phone: body.phone?.trim() || user.phone,
@@ -141,11 +173,17 @@ buyerRouter.post('/open-business', async (req: AuthedRequest, res, next) => {
           city: body.city.trim(),
           area: body.area.trim(),
           businessType: body.businessType,
+          premisesType: body.premisesType,
+          businessAddress: normalizeString(body.businessAddress),
+          pincode: normalizeString(body.pincode),
+          gstin: normalizeString(body.gstin),
+          pan: normalizeString(body.pan),
+          fssaiLicense: normalizeString(body.fssaiLicense),
+          categoriesJson: JSON.stringify(body.categories ?? []),
+          acceptsWholesale: body.acceptsWholesale,
           message: 'Opened from buyer account (self-serve business setup)',
-          status: ApplicationStatus.APPROVED,
-          adminNotes: 'Auto-created when buyer opened a business account',
-          reviewedAt: new Date(),
-          reviewedBy: 'system',
+          status: ApplicationStatus.PENDING,
+          adminNotes: null,
         },
       }),
       prisma.activityLog.create({
@@ -159,9 +197,6 @@ buyerRouter.post('/open-business', async (req: AuthedRequest, res, next) => {
       }),
     ]);
 
-    console.log(
-      `[Nestly SELLER] Business opened by buyer ${user.email}: ${vendor.name}`,
-    );
 
     const updated = await prisma.user.findUnique({
       where: { id: userId },
@@ -177,7 +212,7 @@ buyerRouter.post('/open-business', async (req: AuthedRequest, res, next) => {
 
     res.status(201).json({
       message:
-        'Business account created and approved. Seller Dashboard is ready now.',
+        'Business account created. Add your products while your seller application is reviewed.',
       token,
       user: updated ? serializeUser(updated, updated.addresses) : null,
       business: serializeVendor(vendor),

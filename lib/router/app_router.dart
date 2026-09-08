@@ -10,6 +10,7 @@ import '../screens/orders/orders_screen.dart';
 import '../screens/product/product_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/profile/addresses_screen.dart';
+import '../screens/profile/delete_account_screen.dart';
 import '../screens/legal/legal_screens.dart';
 import '../screens/search/search_screen.dart';
 import '../screens/admin/admin_applications_screen.dart';
@@ -23,9 +24,6 @@ import '../screens/shell/seller_shell.dart';
 import '../screens/splash/splash_screen.dart';
 import '../screens/tracking/live_tracking_screen.dart';
 import '../screens/vendor/vendor_screen.dart';
-import '../screens/wisdom/wisdom_compose_screen.dart';
-import '../screens/wisdom/wisdom_detail_screen.dart';
-import '../screens/wisdom/wisdom_home_screen.dart';
 
 final GlobalKey<NavigatorState> _rootKey = GlobalKey<NavigatorState>();
 final GlobalKey<NavigatorState> _shellKey = GlobalKey<NavigatorState>();
@@ -37,68 +35,40 @@ GoRouter createAppRouter() {
     initialLocation: '/',
     debugLogDiagnostics: false,
     routes: [
-      GoRoute(
-        path: '/',
-        builder: (context, state) => const SplashScreen(),
-      ),
+      GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
       ShellRoute(
         navigatorKey: _shellKey,
         builder: (context, state, child) {
-          return MainShell(
-            location: state.uri.toString(),
-            child: child,
-          );
+          return MainShell(location: state.uri.toString(), child: child);
         },
         routes: [
           GoRoute(
             path: '/home',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: HomeScreen(),
-            ),
+            pageBuilder: (context, state) =>
+                const NoTransitionPage(child: HomeScreen()),
           ),
           GoRoute(
             path: '/search',
             pageBuilder: (context, state) => NoTransitionPage(
-              child: SearchScreen(
-                initialQuery: state.uri.queryParameters['q'],
-              ),
-            ),
-          ),
-          GoRoute(
-            path: '/wisdom',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: WisdomHomeScreen(),
+              child: SearchScreen(initialQuery: state.uri.queryParameters['q']),
             ),
           ),
           GoRoute(
             path: '/orders',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: OrdersScreen(),
-            ),
+            pageBuilder: (context, state) =>
+                const NoTransitionPage(child: OrdersScreen()),
           ),
           GoRoute(
             path: '/profile',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: ProfileScreen(),
-            ),
+            pageBuilder: (context, state) =>
+                const NoTransitionPage(child: ProfileScreen()),
           ),
         ],
       ),
       GoRoute(
         path: '/hub/:id',
-        builder: (context, state) => HubScreen(
-          hubId: state.pathParameters['id']!,
-        ),
-      ),
-      GoRoute(
-        path: '/wisdom/compose',
-        builder: (context, state) => const WisdomComposeScreen(),
-      ),
-      GoRoute(
-        path: '/wisdom/post/:id',
-        builder: (context, state) => WisdomDetailScreen(
-          postId: state.pathParameters['id']!,
-        ),
+        builder: (context, state) =>
+            HubScreen(hubId: state.pathParameters['id']!),
       ),
       GoRoute(
         path: '/categories',
@@ -106,47 +76,38 @@ GoRouter createAppRouter() {
       ),
       GoRoute(
         path: '/category/:id',
-        builder: (context, state) => CategoryScreen(
-          categoryId: state.pathParameters['id']!,
-        ),
+        builder: (context, state) =>
+            CategoryScreen(categoryId: state.pathParameters['id']!),
       ),
       GoRoute(
         path: '/vendor/:id',
-        builder: (context, state) => VendorScreen(
-          vendorId: state.pathParameters['id']!,
-        ),
+        builder: (context, state) =>
+            VendorScreen(vendorId: state.pathParameters['id']!),
       ),
       GoRoute(
         path: '/product/:id',
-        builder: (context, state) => ProductScreen(
-          productId: state.pathParameters['id']!,
-        ),
+        builder: (context, state) =>
+            ProductScreen(productId: state.pathParameters['id']!),
       ),
-      GoRoute(
-        path: '/cart',
-        builder: (context, state) => const CartScreen(),
-      ),
+      GoRoute(path: '/cart', builder: (context, state) => const CartScreen()),
       GoRoute(
         path: '/checkout',
         builder: (context, state) => const CheckoutScreen(),
       ),
       GoRoute(
         path: '/order/:id',
-        builder: (context, state) => OrderDetailScreen(
-          orderId: state.pathParameters['id']!,
-        ),
+        builder: (context, state) =>
+            OrderDetailScreen(orderId: state.pathParameters['id']!),
       ),
       GoRoute(
         path: '/order-success/:id',
-        builder: (context, state) => OrderSuccessScreen(
-          orderId: state.pathParameters['id']!,
-        ),
+        builder: (context, state) =>
+            OrderSuccessScreen(orderId: state.pathParameters['id']!),
       ),
       GoRoute(
         path: '/track/:id',
-        builder: (context, state) => LiveTrackingScreen(
-          orderId: state.pathParameters['id']!,
-        ),
+        builder: (context, state) =>
+            LiveTrackingScreen(orderId: state.pathParameters['id']!),
       ),
       GoRoute(
         path: '/login',
@@ -158,6 +119,10 @@ GoRouter createAppRouter() {
       GoRoute(
         path: '/favourites',
         builder: (context, state) => const FavouritesScreen(),
+      ),
+      GoRoute(
+        path: '/account/delete',
+        builder: (context, state) => const DeleteAccountScreen(),
       ),
       GoRoute(
         path: '/addresses',
@@ -181,10 +146,7 @@ GoRouter createAppRouter() {
         builder: (context, state) => const SellerBusinessSetupScreen(),
       ),
       // Legacy application form (admin still sees SellerApplication)
-      GoRoute(
-        path: '/become-seller',
-        redirect: (context, state) => '/sell',
-      ),
+      GoRoute(path: '/become-seller', redirect: (context, state) => '/sell'),
       GoRoute(
         path: '/admin/applications',
         builder: (context, state) => const AdminApplicationsScreen(),
@@ -193,27 +155,22 @@ GoRouter createAppRouter() {
       ShellRoute(
         navigatorKey: _sellerShellKey,
         builder: (context, state, child) {
-          return SellerShell(
-            location: state.uri.toString(),
-            child: child,
-          );
+          return SellerShell(location: state.uri.toString(), child: child);
         },
         routes: [
           GoRoute(
             path: '/seller',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: SellerDashboardScreen(),
-            ),
+            pageBuilder: (context, state) =>
+                const NoTransitionPage(child: SellerDashboardScreen()),
           ),
           GoRoute(
             path: '/seller/onboard',
-            builder: (context, state) => const SellerOnboardScreen(),
+            redirect: (context, state) => '/sell/setup',
           ),
           GoRoute(
             path: '/seller/products',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: SellerProductsScreen(),
-            ),
+            pageBuilder: (context, state) =>
+                const NoTransitionPage(child: SellerProductsScreen()),
           ),
           GoRoute(
             path: '/seller/products/new',
@@ -221,27 +178,23 @@ GoRouter createAppRouter() {
           ),
           GoRoute(
             path: '/seller/products/:id/edit',
-            builder: (context, state) => SellerProductFormScreen(
-              productId: state.pathParameters['id'],
-            ),
+            builder: (context, state) =>
+                SellerProductFormScreen(productId: state.pathParameters['id']),
           ),
           GoRoute(
             path: '/seller/orders',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: SellerOrdersScreen(),
-            ),
+            pageBuilder: (context, state) =>
+                const NoTransitionPage(child: SellerOrdersScreen()),
           ),
           GoRoute(
             path: '/seller/orders/:id',
-            builder: (context, state) => SellerOrderDetailScreen(
-              orderId: state.pathParameters['id']!,
-            ),
+            builder: (context, state) =>
+                SellerOrderDetailScreen(orderId: state.pathParameters['id']!),
           ),
           GoRoute(
             path: '/seller/store',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: SellerStoreSettingsScreen(),
-            ),
+            pageBuilder: (context, state) =>
+                const NoTransitionPage(child: SellerStoreSettingsScreen()),
           ),
         ],
       ),

@@ -1,0 +1,12 @@
+ALTER TABLE "User" ADD COLUMN "deletedAt" TIMESTAMP(3);
+ALTER TABLE "Vendor" ALTER COLUMN "rating" SET DEFAULT 0;
+ALTER TABLE "Vendor" ALTER COLUMN "isApproved" SET DEFAULT false;
+ALTER TABLE "Product" ALTER COLUMN "rating" SET DEFAULT 0;
+ALTER TABLE "Order" ADD COLUMN "idempotencyKey" TEXT;
+ALTER TABLE "Order" ADD COLUMN "requestHash" TEXT;
+ALTER TABLE "Order" ADD COLUMN "addressSnapshotJson" TEXT;
+CREATE UNIQUE INDEX "Order_customerId_idempotencyKey_key" ON "Order"("customerId", "idempotencyKey");
+CREATE INDEX "Order_customerId_placedAt_idx" ON "Order"("customerId", "placedAt");
+CREATE INDEX "Order_vendorId_status_placedAt_idx" ON "Order"("vendorId", "status", "placedAt");
+ALTER TABLE "SellerApplication" ADD COLUMN "vendorId" TEXT;
+CREATE UNIQUE INDEX "SellerApplication_vendorId_key" ON "SellerApplication"("vendorId");

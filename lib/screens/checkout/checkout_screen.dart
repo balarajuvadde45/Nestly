@@ -8,6 +8,7 @@ import '../../models/order.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/order_provider.dart';
+import '../../services/api_client.dart';
 import '../../widgets/empty_state.dart';
 import '../profile/addresses_screen.dart';
 
@@ -41,7 +42,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
 
     final addresses = auth.user?.addresses ?? [];
-    _selectedAddress ??= auth.user?.defaultAddress ??
+    _selectedAddress ??=
+        auth.user?.defaultAddress ??
         (addresses.isNotEmpty ? addresses.first : null);
 
     if (!auth.isLoggedIn) {
@@ -77,8 +79,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   isScrollControlled: true,
                   backgroundColor: Colors.white,
                   shape: const RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.vertical(top: Radius.circular(20)),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(20),
+                    ),
                   ),
                   builder: (ctx) => const AddressFormSheet(),
                 );
@@ -91,9 +94,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               const Card(
                 child: Padding(
                   padding: EdgeInsets.all(16),
-                  child: Text(
-                    'Add a delivery address to place your order.',
-                  ),
+                  child: Text('Add a delivery address to place your order.'),
                 ),
               )
             else
@@ -138,17 +139,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                       Text(
                                         a.label,
                                         style: const TextStyle(
-                                            fontWeight: FontWeight.w700),
+                                          fontWeight: FontWeight.w700,
+                                        ),
                                       ),
                                       if (a.isDefault) ...[
                                         const SizedBox(width: 8),
                                         Container(
                                           padding: const EdgeInsets.symmetric(
-                                              horizontal: 6, vertical: 2),
+                                            horizontal: 6,
+                                            vertical: 2,
+                                          ),
                                           decoration: BoxDecoration(
                                             color: AppColors.primaryLight,
-                                            borderRadius:
-                                                BorderRadius.circular(4),
+                                            borderRadius: BorderRadius.circular(
+                                              4,
+                                            ),
                                           ),
                                           child: const Text(
                                             'DEFAULT',
@@ -208,7 +213,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         ),
                         SizedBox(height: 2),
                         Text(
-                          'Pay in cash when your order arrives. Online payments coming soon.',
+                          'Pay in cash when your order arrives.',
                           style: TextStyle(
                             fontSize: 12,
                             color: AppColors.textSecondary,
@@ -229,12 +234,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   children: [
                     _row('Items (${cart.itemCount})', cart.itemTotal),
                     _row('Delivery', cart.deliveryFee),
-                    _row('Taxes & fees', cart.platformFee + cart.tax),
+                    _row('Platform fee', cart.platformFee),
                     if (cart.couponDiscount > 0)
-                      _row('Discount', -cart.couponDiscount,
-                          color: AppColors.success),
+                      _row(
+                        'Discount',
+                        -cart.couponDiscount,
+                        color: AppColors.success,
+                      ),
                     const Divider(height: 18),
-                    _row('To pay', cart.grandTotal, bold: true),
+                    _row('Estimated total', cart.grandTotal, bold: true),
                   ],
                 ),
               ),
@@ -296,19 +304,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     height: 22,
                     width: 22,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white),
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   )
-                : Text(
-                    'Place order • ${Formatters.currency(cart.grandTotal)}',
-                  ),
+                : Text('Review order'),
           ),
         ),
       ),
     );
   }
 
-  Widget _row(String label, double amount,
-      {bool bold = false, Color? color}) {
+  Widget _row(String label, double amount, {bool bold = false, Color? color}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
@@ -355,7 +362,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('Add a delivery address in your profile first')),
+            content: Text('Add a delivery address in your profile first'),
+          ),
         );
       }
       return;
@@ -373,7 +381,74 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     setState(() => _placing = true);
     try {
+      final response = await context.read<ApiClient>().post(
+        '/api/orders/quote',
+        body: {
+          'vendorId': vendor.id,
+          'addressId': address.id,
+          'paymentMethod': 'COD',
+          'items': cart.items
+              .map(
+                (i) => {
+                  'productId': i.product.id,
+                  'quantity': i.quantity,
+                  if (i.selectedSize != null) 'selectedSize': i.selectedSize,
+                  if (i.specialInstructions != null)
+                    'specialInstructions': i.specialInstructions,
+                },
+              )
+              .toList(),
+        },
+      );
+      final quote = Map<String, dynamic>.from(response['quote'] as Map);
+      if (!context.mounted) return;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Confirm order'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final item in (quote['items'] as List))
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(item['productName'] as String),
+                    subtitle: Text('Quantity: ${item['quantity']}'),
+                    trailing: Text(
+                      Formatters.currency(
+                        (item['unitPrice'] as num).toDouble() *
+                            (item['quantity'] as num),
+                      ),
+                    ),
+                  ),
+                _row('Items', (quote['itemTotal'] as num).toDouble()),
+                _row('Delivery', (quote['deliveryFee'] as num).toDouble()),
+                _row('Platform fee', (quote['platformFee'] as num).toDouble()),
+                _row('GST included', (quote['tax'] as num).toDouble()),
+                _row(
+                  'Cash on delivery',
+                  (quote['grandTotal'] as num).toDouble(),
+                  bold: true,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Back'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Place order'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
       final order = await orders.placeOrder(
+        quoteHash: quote['quoteHash'] as String,
         vendor: vendor,
         items: cart.items,
         address: address,
@@ -392,9 +467,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       context.go('/order-success/${order.id}');
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Order failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Order failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _placing = false);

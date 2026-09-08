@@ -1,4 +1,14 @@
-enum VendorType { homeCook, cloudKitchen, homeBusiness, boutique }
+enum VendorType {
+  homeCook,
+  cloudKitchen,
+  homeBusiness,
+  boutique,
+  foodOutlet,
+  picklesAndPackagedFood,
+  sweetsSnacks,
+  fmcgDistributor,
+  handmadeProducts,
+}
 
 class Vendor {
   final String id;
@@ -14,8 +24,25 @@ class Vendor {
   final double distanceKm;
   final String area;
   final String city;
+  final String? businessAddress;
+  final String? pincode;
+  final String premisesType;
+  final String? supportPhone;
+  final String? supportEmail;
+  final String? gstin;
+  final String? pan;
+  final String? fssaiLicense;
+  final DateTime? fssaiExpiry;
+  final String kycStatus;
+  final String? bankAccountLast4;
+  final bool bankVerified;
+  final List<String> fulfillmentModes;
+  final double serviceRadiusKm;
+  final bool gstInvoiceAvailable;
+  final bool acceptsWholesale;
   final List<String> categories;
   final List<String> tags;
+  final bool isApproved;
   final bool isOpen;
   final bool isPureVeg;
   final bool freeDelivery;
@@ -40,8 +67,25 @@ class Vendor {
     required this.distanceKm,
     required this.area,
     this.city = 'Hyderabad',
+    this.businessAddress,
+    this.pincode,
+    this.premisesType = 'BUSINESS_PLACE',
+    this.supportPhone,
+    this.supportEmail,
+    this.gstin,
+    this.pan,
+    this.fssaiLicense,
+    this.fssaiExpiry,
+    this.kycStatus = 'PENDING',
+    this.bankAccountLast4,
+    this.bankVerified = false,
+    this.fulfillmentModes = const ['LOCAL_DELIVERY'],
+    this.serviceRadiusKm = 5,
+    this.gstInvoiceAvailable = false,
+    this.acceptsWholesale = false,
     this.categories = const [],
     this.tags = const [],
+    this.isApproved = false,
     this.isOpen = true,
     this.isPureVeg = false,
     this.freeDelivery = false,
@@ -53,16 +97,28 @@ class Vendor {
     this.ownerId,
   });
 
+  bool get isVerified => kycStatus.toUpperCase() == 'VERIFIED';
+
   String get typeLabel {
     switch (type) {
       case VendorType.homeCook:
-        return 'Home Kitchen';
+        return 'Home kitchen';
       case VendorType.cloudKitchen:
-        return 'Cloud Kitchen';
+        return 'Cloud kitchen';
       case VendorType.homeBusiness:
-        return 'Home Business';
+        return 'Local business';
       case VendorType.boutique:
-        return 'Home Boutique';
+        return 'Boutique';
+      case VendorType.foodOutlet:
+        return 'Food outlet';
+      case VendorType.picklesAndPackagedFood:
+        return 'Pickles & packaged food';
+      case VendorType.sweetsSnacks:
+        return 'Sweets & snacks';
+      case VendorType.fmcgDistributor:
+        return 'FMCG wholesaler';
+      case VendorType.handmadeProducts:
+        return 'Handmade products';
     }
   }
 
@@ -72,6 +128,9 @@ class Vendor {
     String? name,
     String? tagline,
     String? description,
+    bool? freeDelivery,
+    bool? gstInvoiceAvailable,
+    bool? acceptsWholesale,
   }) {
     return Vendor(
       id: id,
@@ -87,11 +146,27 @@ class Vendor {
       distanceKm: distanceKm,
       area: area,
       city: city,
+      businessAddress: businessAddress,
+      pincode: pincode,
+      premisesType: premisesType,
+      supportPhone: supportPhone,
+      supportEmail: supportEmail,
+      gstin: gstin,
+      pan: pan,
+      fssaiLicense: fssaiLicense,
+      fssaiExpiry: fssaiExpiry,
+      kycStatus: kycStatus,
+      bankAccountLast4: bankAccountLast4,
+      bankVerified: bankVerified,
+      fulfillmentModes: fulfillmentModes,
+      serviceRadiusKm: serviceRadiusKm,
+      gstInvoiceAvailable: gstInvoiceAvailable ?? this.gstInvoiceAvailable,
+      acceptsWholesale: acceptsWholesale ?? this.acceptsWholesale,
       categories: categories,
       tags: tags,
       isOpen: isOpen ?? this.isOpen,
       isPureVeg: isPureVeg,
-      freeDelivery: freeDelivery,
+      freeDelivery: freeDelivery ?? this.freeDelivery,
       minOrder: minOrder,
       offerText: offerText ?? this.offerText,
       orderCount: orderCount,

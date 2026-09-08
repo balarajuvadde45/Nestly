@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/order.dart';
 import '../models/user.dart';
 import '../services/api_client.dart';
@@ -17,6 +18,7 @@ class AuthProvider extends ChangeNotifier {
 
   final ApiClient _api;
   final SocketService _socket;
+  final _secureStorage = const FlutterSecureStorage();
 
   AppUser? _user;
   String? _token;
@@ -33,12 +35,7 @@ class AuthProvider extends ChangeNotifier {
   NestlyMode get mode => _mode;
   bool get isBuyerMode => _mode == NestlyMode.buyer;
   bool get isSellerMode => _mode == NestlyMode.seller;
-  bool get isLoggedIn =>
-      _user != null &&
-      _token != null &&
-      _token!.isNotEmpty &&
-      !_token!.startsWith('mock') &&
-      !_token!.startsWith('guest');
+  bool get isLoggedIn => _user != null && _token != null && _token!.isNotEmpty;
   bool get isSeller => _user?.isSeller == true || _vendorId != null;
   bool get hasBusiness => _vendorId != null;
   bool get isLoading => _isLoading;
@@ -61,20 +58,20 @@ class AuthProvider extends ChangeNotifier {
   Future<void> _logBuyer(String action, [String? message]) async {
     if (!isLoggedIn) return;
     try {
-      await _api.post('/api/buyer/log', body: {
-        'action': action,
-        'message': ?message,
-      });
+      await _api.post(
+        '/api/buyer/log',
+        body: {'action': action, 'message': ?message},
+      );
     } catch (_) {}
   }
 
   Future<void> _logSeller(String action, [String? message]) async {
     if (!isLoggedIn) return;
     try {
-      await _api.post('/api/seller/log', body: {
-        'action': action,
-        'message': ?message,
-      });
+      await _api.post(
+        '/api/seller/log',
+        body: {'action': action, 'message': ?message},
+      );
     } catch (_) {}
   }
 
@@ -85,6 +82,14 @@ class AuthProvider extends ChangeNotifier {
     String businessType = 'HOME_BUSINESS',
     String? tagline,
     String? description,
+    String? businessAddress,
+    String? pincode,
+    String premisesType = 'BUSINESS_PLACE',
+    String? gstin,
+    String? pan,
+    String? fssaiLicense,
+    bool gstInvoiceAvailable = false,
+    bool acceptsWholesale = false,
   }) async {
     if (!isLoggedIn) {
       _error = 'Login with your buyer account first.';
@@ -95,15 +100,28 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      final res = await _api.post('/api/buyer/open-business', body: {
-        'businessName': businessName,
-        'area': area,
-        'city': city,
-        'businessType': businessType,
-        if (tagline != null && tagline.isNotEmpty) 'tagline': tagline,
-        if (description != null && description.isNotEmpty)
-          'description': description,
-      });
+      final res = await _api.post(
+        '/api/buyer/open-business',
+        body: {
+          'businessName': businessName,
+          'area': area,
+          'city': city,
+          'businessType': businessType,
+          'premisesType': premisesType,
+          'gstInvoiceAvailable': gstInvoiceAvailable,
+          'acceptsWholesale': acceptsWholesale,
+          if (tagline != null && tagline.isNotEmpty) 'tagline': tagline,
+          if (description != null && description.isNotEmpty)
+            'description': description,
+          if (businessAddress != null && businessAddress.isNotEmpty)
+            'businessAddress': businessAddress,
+          if (pincode != null && pincode.isNotEmpty) 'pincode': pincode,
+          if (gstin != null && gstin.isNotEmpty) 'gstin': gstin,
+          if (pan != null && pan.isNotEmpty) 'pan': pan,
+          if (fssaiLicense != null && fssaiLicense.isNotEmpty)
+            'fssaiLicense': fssaiLicense,
+        },
+      );
       final newToken = res['token'] as String?;
       if (newToken != null && newToken.isNotEmpty) {
         _token = newToken;
@@ -170,7 +188,9 @@ class AuthProvider extends ChangeNotifier {
   Future<void> _restoreSession() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final saved = prefs.getString(_kTokenKey);
+      await prefs.remove(_kTokenKey);
+      if (kIsWeb) return;
+      final saved = await _secureStorage.read(key: _kTokenKey);
       if (saved == null || saved.isEmpty) return;
       _token = saved;
       _api.setToken(saved);
@@ -178,28 +198,24 @@ class AuthProvider extends ChangeNotifier {
       await _refreshMe();
       if (_user != null) {
         _socket.connect();
-      } else {
-        await _clearPersistedToken();
-        _token = null;
-        _api.setToken(null);
       }
     } catch (_) {}
   }
 
   Future<void> _persistToken(String? token) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      if (kIsWeb) return;
       if (token == null || token.isEmpty) {
-        await prefs.remove(_kTokenKey);
+        await _secureStorage.delete(key: _kTokenKey);
       } else {
-        await prefs.setString(_kTokenKey, token);
+        await _secureStorage.write(key: _kTokenKey, value: token);
       }
     } catch (_) {}
   }
 
   Future<void> _clearPersistedToken() => _persistToken(null);
 
-  /// Send OTP to phone. Returns API payload (may include devOtp).
+  /// Send OTP to phone. Returns the delivery acknowledgement.
   Future<Map<String, dynamic>?> sendPhoneOtp(String phone) async {
     _isLoading = true;
     _error = null;
@@ -208,12 +224,10 @@ class AuthProvider extends ChangeNotifier {
       final online = await _api.healthCheck();
       _backendOnline = online;
       if (!online) {
-        _error = 'Server offline. Start Nestly API and try again.';
+        _error = 'Unable to connect. Please try again shortly.';
         return null;
       }
-      final res = await _api.post('/api/auth/send-otp', body: {
-        'phone': phone,
-      });
+      final res = await _api.post('/api/auth/send-otp', body: {'phone': phone});
       return res;
     } on ApiException catch (e) {
       _error = e.message;
@@ -235,14 +249,17 @@ class AuthProvider extends ChangeNotifier {
       final online = await _api.healthCheck();
       _backendOnline = online;
       if (!online) {
-        _error = 'Server offline. Start Nestly API and try again.';
+        _error = 'Unable to connect. Please try again shortly.';
         return false;
       }
-      final res = await _api.post('/api/auth/verify-otp', body: {
-        'phone': phone,
-        'otp': otp,
-        if (name != null && name.isNotEmpty) 'name': name,
-      });
+      final res = await _api.post(
+        '/api/auth/verify-otp',
+        body: {
+          'phone': phone,
+          'otp': otp,
+          if (name != null && name.isNotEmpty) 'name': name,
+        },
+      );
       await _applyAuth(res);
       return true;
     } on ApiException catch (e) {
@@ -256,10 +273,6 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
-
-  /// Legacy helper used by older call sites.
-  Future<bool> loginWithPhone(String phone, {String otp = '123456'}) =>
-      verifyPhoneOtp(phone, otp);
 
   Future<bool> loginWithEmail(String email, String password) async {
     _isLoading = true;
@@ -269,51 +282,13 @@ class AuthProvider extends ChangeNotifier {
       final online = await _api.healthCheck();
       _backendOnline = online;
       if (!online) {
-        _error = 'Server offline. Start Nestly API and try again.';
+        _error = 'Unable to connect. Please try again shortly.';
         return false;
       }
-      final res = await _api.post('/api/auth/login', body: {
-        'email': email.trim(),
-        'password': password,
-      });
-      await _applyAuth(res);
-      return true;
-    } on ApiException catch (e) {
-      _error = e.message;
-      return false;
-    } catch (e) {
-      _error = e.toString();
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  Future<bool> loginWithGoogle({
-    required String email,
-    required String name,
-    required String googleId,
-    String? avatarUrl,
-    String? idToken,
-  }) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-    try {
-      final online = await _api.healthCheck();
-      _backendOnline = online;
-      if (!online) {
-        _error = 'Server offline. Start Nestly API and try again.';
-        return false;
-      }
-      final res = await _api.post('/api/auth/google', body: {
-        'email': email.trim(),
-        'name': name.trim(),
-        'googleId': googleId,
-        if (avatarUrl != null && avatarUrl.isNotEmpty) 'avatarUrl': avatarUrl,
-        if (idToken != null && idToken.isNotEmpty) 'idToken': idToken,
-      });
+      final res = await _api.post(
+        '/api/auth/login',
+        body: {'email': email.trim(), 'password': password},
+      );
       await _applyAuth(res);
       return true;
     } on ApiException catch (e) {
@@ -333,6 +308,7 @@ class AuthProvider extends ChangeNotifier {
     required String email,
     required String phone,
     required String password,
+    required String otp,
     bool asSeller = false,
   }) async {
     _isLoading = true;
@@ -342,16 +318,19 @@ class AuthProvider extends ChangeNotifier {
       final online = await _api.healthCheck();
       _backendOnline = online;
       if (!online) {
-        _error = 'Server offline. Start Nestly API and try again.';
+        _error = 'Unable to connect. Please try again shortly.';
         return false;
       }
-      final res = await _api.post('/api/auth/register', body: {
-        'name': name,
-        'email': email,
-        'phone': phone,
-        'password': password,
-        if (asSeller) 'role': 'SELLER',
-      });
+      final res = await _api.post(
+        '/api/auth/register',
+        body: {
+          'name': name,
+          'email': email,
+          'phone': phone,
+          'password': password,
+          'otp': otp,
+        },
+      );
       await _applyAuth(res);
       return true;
     } on ApiException catch (e) {
@@ -380,13 +359,17 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> _refreshMe() async {
+    final requestedToken = _token;
     try {
       final res = await _api.get('/api/auth/me');
+      if (requestedToken != _token) return;
       if (res['user'] is Map) {
         _user = userFromJson(Map<String, dynamic>.from(res['user'] as Map));
       }
       _vendorId = res['vendorId'] as String?;
       notifyListeners();
+    } on ApiException catch (e) {
+      if (e.statusCode == 401 && requestedToken == _token) await logout();
     } catch (_) {}
   }
 
@@ -399,39 +382,69 @@ class AuthProvider extends ChangeNotifier {
     _mode = NestlyMode.buyer;
     _api.setToken(null);
     _socket.disconnect();
+    _socket.setToken(null);
     await _clearPersistedToken();
     notifyListeners();
   }
 
-  void updateProfile({String? name, String? email, String? phone}) {
-    if (_user == null) return;
-    _user = _user!.copyWith(name: name, email: email, phone: phone);
-    notifyListeners();
+  Future<bool> updateProfile({required String name}) async {
+    try {
+      await _api.patch('/api/auth/me', body: {'name': name});
+      await _refreshMe();
+      return true;
+    } on ApiException catch (e) {
+      _error = e.message;
+      notifyListeners();
+      return false;
+    } catch (_) {
+      _error = 'Unable to update profile. Please try again.';
+      return false;
+    }
   }
 
-  void toggleFavoriteVendor(String vendorId) {
-    if (_user == null) return;
-    final list = List<String>.from(_user!.favoriteVendorIds);
-    if (list.contains(vendorId)) {
-      list.remove(vendorId);
-    } else {
-      list.add(vendorId);
+  Future<bool> deleteAccount({String? password, String? otp}) async {
+    try {
+      await _api.post(
+        '/api/auth/me/delete',
+        body: {
+          'confirmation': 'DELETE',
+          if (password != null && password.isNotEmpty) 'password': password,
+          if (otp != null && otp.isNotEmpty) 'otp': otp,
+        },
+      );
+      await logout();
+      return true;
+    } on ApiException catch (e) {
+      _error = e.message;
+      notifyListeners();
+      return false;
+    } catch (_) {
+      _error = 'Unable to delete account. Please try again.';
+      return false;
     }
-    _user = _user!.copyWith(favoriteVendorIds: list);
-    notifyListeners();
   }
 
-  void toggleFavoriteProduct(String productId) {
-    if (_user == null) return;
-    final list = List<String>.from(_user!.favoriteProductIds);
-    if (list.contains(productId)) {
-      list.remove(productId);
-    } else {
-      list.add(productId);
+  Future<void> _setFavorite(String kind, String id, bool saved) async {
+    if (!isLoggedIn) return;
+    try {
+      await _api.post(
+        '/api/favorites',
+        body: {'kind': kind, 'id': id, 'saved': saved},
+      );
+      await _refreshMe();
+    } on ApiException catch (e) {
+      _error = e.message;
+      notifyListeners();
+    } catch (_) {
+      _error = 'Unable to save favourite. Please try again.';
+      notifyListeners();
     }
-    _user = _user!.copyWith(favoriteProductIds: list);
-    notifyListeners();
   }
+
+  Future<void> toggleFavoriteVendor(String id) =>
+      _setFavorite('vendor', id, !isVendorFavorite(id));
+  Future<void> toggleFavoriteProduct(String id) =>
+      _setFavorite('product', id, !isProductFavorite(id));
 
   bool isVendorFavorite(String id) =>
       _user?.favoriteVendorIds.contains(id) ?? false;

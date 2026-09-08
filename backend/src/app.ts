@@ -15,8 +15,9 @@ import { catalogRouter } from './routes/catalog';
 import { ordersRouter } from './routes/orders';
 import { sellerRouter } from './routes/seller';
 import { addressesRouter } from './routes/addresses';
-import { wisdomRouter } from './routes/wisdom';
+import { redis, rateLimitStore } from './lib/redis';
 import { applicationsRouter } from './routes/applications';
+import { favoritesRouter } from './routes/favorites';
 import { buyerRouter } from './routes/buyer';
 
 const isTest = process.env.NODE_ENV === 'test';
@@ -31,7 +32,8 @@ export function createApp(): Express {
 
   // We sit behind Cloudflare / a load balancer in production, so trust the
   // first proxy hop for correct client IPs (rate limiting, logging).
-  app.set('trust proxy', 1);
+  app.set('trust proxy', env.trustProxyHops);
+  app.disable('x-powered-by');
 
   app.use(
     helmet({
@@ -41,7 +43,7 @@ export function createApp(): Express {
   );
   app.use(
     cors({
-      origin: env.corsOrigin === '*' ? true : env.corsOrigin.split(','),
+      origin: env.corsOrigin === '*' ? true : env.corsOrigin.split(',').map(v => v.trim()),
     }),
   );
   app.use(compression());
@@ -57,6 +59,7 @@ export function createApp(): Express {
   app.get('/readyz', async (_req: Request, res: Response) => {
     try {
       await prisma.$queryRaw`SELECT 1`;
+      if (redis) await redis.ping();
       res.json({ ok: true, database: 'up', time: new Date().toISOString() });
     } catch {
       res
@@ -69,11 +72,12 @@ export function createApp(): Express {
     let db = 'unknown';
     try {
       await prisma.$queryRaw`SELECT 1`;
+      if (redis) await redis.ping();
       db = 'up';
     } catch {
       db = 'down';
     }
-    res.json({
+    res.status(db === 'up' ? 200 : 503).json({
       ok: db === 'up',
       service: 'nestly-api',
       database: db,
@@ -82,20 +86,21 @@ export function createApp(): Express {
   });
 
   // ---- Rate limiting ----
-  // NOTE: in-memory store — resets per instance and is NOT shared across
-  // instances. Phase 1 swaps this for a Redis-backed store so limits hold
-  // across the whole fleet.
   const skip = (): boolean => isTest;
   const apiLimiter = rateLimit({
     windowMs: 60_000,
     max: 300,
+    store: rateLimitStore('api'),
+    message: { error: 'Too many requests. Please try later.' },
     standardHeaders: true,
     legacyHeaders: false,
     skip,
   });
   const authLimiter = rateLimit({
     windowMs: 15 * 60_000,
-    max: 100,
+    max: 30,
+    store: rateLimitStore('auth'),
+    message: { error: 'Too many sign-in attempts. Please try later.' },
     standardHeaders: true,
     legacyHeaders: false,
     skip,
@@ -108,8 +113,8 @@ export function createApp(): Express {
   app.use('/api/catalog', catalogRouter);
   app.use('/api/orders', ordersRouter);
   app.use('/api/buyer', buyerRouter);
+  app.use('/api/favorites', favoritesRouter);
   app.use('/api/addresses', addressesRouter);
-  app.use('/api/wisdom', wisdomRouter);
 
   // Seller dashboard API (separate surface)
   app.use('/api/seller', sellerRouter);

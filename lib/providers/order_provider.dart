@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:uuid/uuid.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/cart_item.dart';
 import '../models/order.dart';
 import '../models/vendor.dart';
@@ -48,6 +51,7 @@ class OrderProvider extends ChangeNotifier {
   }
 
   Future<Order> placeOrder({
+    required String quoteHash,
     required Vendor vendor,
     required List<CartItem> items,
     required Address address,
@@ -64,21 +68,42 @@ class OrderProvider extends ChangeNotifier {
       throw Exception('Please log in to place an order.');
     }
 
-    final res = await _api.post('/api/orders', body: {
+    final body = <String, dynamic>{
       'vendorId': vendor.id,
       'addressId': address.id,
       'paymentMethod': 'COD',
-      if (couponCode != null && couponCode.isNotEmpty) 'couponCode': couponCode,
+      'quoteHash': quoteHash,
       'items': items
-          .map((i) => {
-                'productId': i.product.id,
-                'quantity': i.quantity,
-                if (i.selectedSize != null) 'selectedSize': i.selectedSize,
-                if (i.specialInstructions != null)
-                  'specialInstructions': i.specialInstructions,
-              })
+          .map(
+            (i) => {
+              'productId': i.product.id,
+              'quantity': i.quantity,
+              if (i.selectedSize != null) 'selectedSize': i.selectedSize,
+              if (i.specialInstructions != null)
+                'specialInstructions': i.specialInstructions,
+            },
+          )
           .toList(),
-    });
+    };
+    final prefs = await SharedPreferences.getInstance();
+    final signature = jsonEncode(body);
+    final saved = prefs.getString('nestly_checkout_pending');
+    Map<String, dynamic>? pending;
+    try {
+      if (saved != null) pending = jsonDecode(saved) as Map<String, dynamic>;
+    } catch (_) {}
+    final key = pending?['signature'] == signature
+        ? pending!['key'] as String
+        : const Uuid().v4();
+    await prefs.setString(
+      'nestly_checkout_pending',
+      jsonEncode({'signature': signature, 'key': key}),
+    );
+    final res = await _api.post(
+      '/api/orders',
+      body: {...body, 'idempotencyKey': key},
+    );
+    await prefs.remove('nestly_checkout_pending');
 
     final order = orderFromJson(Map<String, dynamic>.from(res['order'] as Map));
     _orders.insert(0, order);
@@ -123,8 +148,9 @@ class OrderProvider extends ChangeNotifier {
     if (_api.token == null) return;
     try {
       final res = await _api.get('/api/orders/$id');
-      final order =
-          orderFromJson(Map<String, dynamic>.from(res['order'] as Map));
+      final order = orderFromJson(
+        Map<String, dynamic>.from(res['order'] as Map),
+      );
       final i = _orders.indexWhere((o) => o.id == id);
       if (i >= 0) {
         _orders[i] = order;
@@ -139,8 +165,9 @@ class OrderProvider extends ChangeNotifier {
     if (_api.token == null) return;
     try {
       final res = await _api.post('/api/orders/$orderId/cancel');
-      final order =
-          orderFromJson(Map<String, dynamic>.from(res['order'] as Map));
+      final order = orderFromJson(
+        Map<String, dynamic>.from(res['order'] as Map),
+      );
       final i = _orders.indexWhere((o) => o.id == orderId);
       if (i >= 0) _orders[i] = order;
       notifyListeners();

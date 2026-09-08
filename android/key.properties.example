@@ -2,4 +2,4 @@
 storePassword=
 keyPassword=
 keyAlias=nestly
-storeFile=../keystore/nestly-upload.jks
+storeFile=keystore/nestly-upload.jks
