@@ -56,6 +56,7 @@ class _ProductScreenState extends State<ProductScreen> {
     final vendor = catalog.vendorById(product.vendorId);
     final isFav = auth.isProductFavorite(product.id);
     _selectedSize ??= product.sizes.isNotEmpty ? product.sizes.first : null;
+    _qty = product.normalizeQuantity(_qty);
 
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -87,8 +88,7 @@ class _ProductScreenState extends State<ProductScreen> {
                     ),
                   ),
                   IconButton(
-                    onPressed: () =>
-                        auth.toggleFavoriteProduct(product.id),
+                    onPressed: () => auth.toggleFavoriteProduct(product.id),
                     icon: Icon(
                       isFav
                           ? Icons.favorite_rounded
@@ -99,27 +99,54 @@ class _ProductScreenState extends State<ProductScreen> {
                 ],
               ),
               const SizedBox(height: 8),
-              RatingChip(
-                rating: product.rating,
-                count: product.reviewCount,
-              ),
+              RatingChip(rating: product.rating, count: product.reviewCount),
               const SizedBox(height: 12),
               PriceText(
-                price: product.price,
+                price: product.unitPriceForQuantity(_qty),
                 mrp: product.mrp,
                 fontSize: 20,
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _infoChip(Icons.category_outlined, product.typeLabel),
+                  if (product.unitLabel != null)
+                    _infoChip(Icons.inventory_2_outlined, product.unitLabel!),
+                  if (product.minCartQuantity > 1)
+                    _infoChip(
+                      Icons.shopping_cart_outlined,
+                      'MOQ ${product.minCartQuantity}',
+                    ),
+                  if (product.casePackQuantity != null)
+                    _infoChip(
+                      Icons.all_inbox_outlined,
+                      'Pack ${product.casePackQuantity}',
+                    ),
+                  if (product.stockQuantity != null)
+                    _infoChip(
+                      Icons.warehouse_outlined,
+                      '${product.stockQuantity} in stock',
+                    ),
+                ],
               ),
               if (product.prepTimeMins != null) ...[
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    const Icon(Icons.schedule_rounded,
-                        size: 16, color: AppColors.textSecondary),
+                    const Icon(
+                      Icons.schedule_rounded,
+                      size: 16,
+                      color: AppColors.textSecondary,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       'Prep time ~ ${Formatters.deliveryTime(product.prepTimeMins!)}',
                       style: const TextStyle(
-                          color: AppColors.textSecondary, fontSize: 13),
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                      ),
                     ),
                   ],
                 ),
@@ -138,12 +165,95 @@ class _ProductScreenState extends State<ProductScreen> {
                 Wrap(
                   spacing: 6,
                   children: product.tags
-                      .map((t) => Chip(
-                            label: Text(t, style: const TextStyle(fontSize: 11)),
-                            visualDensity: VisualDensity.compact,
-                          ))
+                      .map(
+                        (t) => Chip(
+                          label: Text(t, style: const TextStyle(fontSize: 11)),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      )
                       .toList(),
                 ),
+              ],
+              if (product.wholesaleTiers.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                const Text(
+                  'Wholesale pricing',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: product.wholesaleTiers
+                      .map(
+                        (tier) => Chip(
+                          label: Text(
+                            '${tier.displayLabel}: ${Formatters.currency(tier.unitPrice)} each',
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      )
+                      .toList(),
+                ),
+              ],
+              if (product.brandName != null ||
+                  product.sku != null ||
+                  product.hsnCode != null ||
+                  product.gstRate != null ||
+                  product.fssaiLicense != null ||
+                  product.batchNumber != null ||
+                  product.expiryDate != null ||
+                  product.shelfLifeDays != null ||
+                  product.manufacturerName != null ||
+                  product.packerName != null ||
+                  product.material != null ||
+                  product.colors.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                const Text(
+                  'Product details',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                ),
+                const SizedBox(height: 10),
+                if (product.brandName != null)
+                  _detailRow('Brand', product.brandName!),
+                if (product.sku != null) _detailRow('SKU', product.sku!),
+                if (product.material != null)
+                  _detailRow('Material', product.material!),
+                if (product.colors.isNotEmpty)
+                  _detailRow('Colors', product.colors.join(', ')),
+                if (product.hsnCode != null)
+                  _detailRow('HSN', product.hsnCode!),
+                if (product.gstRate != null)
+                  _detailRow('GST', '${product.gstRate!.toStringAsFixed(0)}%'),
+                if (product.fssaiLicense != null)
+                  _detailRow('FSSAI', product.fssaiLicense!),
+                if (product.batchNumber != null)
+                  _detailRow('Batch', product.batchNumber!),
+                if (product.expiryDate != null)
+                  _detailRow(
+                    'Best before',
+                    Formatters.dateTime(product.expiryDate!),
+                  ),
+                if (product.shelfLifeDays != null)
+                  _detailRow('Shelf life', '${product.shelfLifeDays} days'),
+                if (product.manufacturerName != null)
+                  _detailRow('Manufacturer', product.manufacturerName!),
+                if (product.packerName != null)
+                  _detailRow('Packer', product.packerName!),
+              ],
+              if (product.isReturnable || product.madeToOrder) ...[
+                const SizedBox(height: 12),
+                if (product.isReturnable)
+                  _detailRow(
+                    'Returns',
+                    '${product.returnWindowDays ?? 7} day return window',
+                  ),
+                if (product.madeToOrder)
+                  _detailRow(
+                    'Dispatch',
+                    'Made to order, ships in ${product.dispatchTimeDays ?? 0} days',
+                  ),
               ],
               if (product.sizes.isNotEmpty) ...[
                 const SizedBox(height: 20),
@@ -180,18 +290,27 @@ class _ProductScreenState extends State<ProductScreen> {
               Row(
                 children: [
                   _qtyBtn(Icons.remove_rounded, () {
-                    if (_qty > 1) setState(() => _qty--);
+                    final next = _qty - product.quantityStep;
+                    if (next >= product.minCartQuantity) {
+                      setState(() => _qty = product.normalizeQuantity(next));
+                    }
                   }),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Text(
                       '$_qty',
                       style: const TextStyle(
-                          fontWeight: FontWeight.w700, fontSize: 18),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 18,
+                      ),
                     ),
                   ),
                   _qtyBtn(Icons.add_rounded, () {
-                    setState(() => _qty++);
+                    setState(() {
+                      _qty = product.normalizeQuantity(
+                        _qty + product.quantityStep,
+                      );
+                    });
                   }),
                 ],
               ),
@@ -228,14 +347,18 @@ class _ProductScreenState extends State<ProductScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(vendor.name,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w700)),
                               Text(
-                                '${vendor.typeLabel} • ${vendor.area}',
+                                vendor.name,
                                 style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.textSecondary),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              Text(
+                                '${vendor.typeLabel} / ${vendor.area}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
                             ],
                           ),
@@ -289,7 +412,10 @@ class _ProductScreenState extends State<ProductScreen> {
                       ),
                     ),
                   ),
-                  Expanded(flex: 5, child: SingleChildScrollView(child: content)),
+                  Expanded(
+                    flex: 5,
+                    child: SingleChildScrollView(child: content),
+                  ),
                 ],
               ),
             )
@@ -314,13 +440,21 @@ class _ProductScreenState extends State<ProductScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Total',
-                        style: TextStyle(
-                            fontSize: 12, color: AppColors.textSecondary)),
+                    const Text(
+                      'Total',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
                     Text(
-                      Formatters.currency(product.price * _qty),
+                      Formatters.currency(
+                        product.unitPriceForQuantity(_qty) * _qty,
+                      ),
                       style: const TextStyle(
-                          fontWeight: FontWeight.w800, fontSize: 18),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                      ),
                     ),
                   ],
                 ),
@@ -328,7 +462,7 @@ class _ProductScreenState extends State<ProductScreen> {
               Expanded(
                 flex: 2,
                 child: ElevatedButton(
-                  onPressed: product.isAvailable
+                  onPressed: product.canOrder
                       ? () => _addToCart(context, cart, product)
                       : null,
                   child: const Text('Add to cart'),
@@ -337,6 +471,43 @@ class _ProductScreenState extends State<ProductScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _infoChip(IconData icon, String label) {
+    return Chip(
+      avatar: Icon(icon, size: 14, color: AppColors.primary),
+      label: Text(label, style: const TextStyle(fontSize: 11)),
+      visualDensity: VisualDensity.compact,
+      backgroundColor: AppColors.primaryLight,
+      side: BorderSide.none,
+    );
+  }
+
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 112,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -357,8 +528,9 @@ class _ProductScreenState extends State<ProductScreen> {
   }
 
   void _addToCart(BuildContext context, CartProvider cart, product) {
-    final vendor =
-        context.read<CatalogProvider>().vendorById(product.vendorId as String);
+    final vendor = context.read<CatalogProvider>().vendorById(
+      product.vendorId as String,
+    );
     final ok = cart.addItem(
       product,
       quantity: _qty,
@@ -379,7 +551,9 @@ class _ProductScreenState extends State<ProductScreen> {
           ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(ctx), child: const Text('No')),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('No'),
+            ),
             ElevatedButton(
               onPressed: () {
                 cart.addItem(

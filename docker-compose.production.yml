@@ -1,0 +1,33 @@
+name: nestly-production
+services:
+  api:
+    image: ${API_IMAGE:?Set an immutable API image tag}
+    restart: unless-stopped
+    init: true
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+      PORT: "4000"
+      TRUST_PROXY_HOPS: "1"
+    expose: ["4000"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4000/readyz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  nginx:
+    image: nginx:1.28-alpine
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:?Set your public hostname}
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./deploy/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./build/web:/usr/share/nginx/html:ro
+      - ${TLS_DIRECTORY:?Set absolute certificate directory}:/etc/nginx/tls:ro

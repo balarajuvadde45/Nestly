@@ -35,12 +35,49 @@ class Address {
   });
 
   String get short => '$area, $city';
+
+  bool get isPlaceholder =>
+      fullAddress.toLowerCase().contains('please update') ||
+      fullAddress.trim().isEmpty;
+
+  Address copyWith({
+    String? id,
+    String? label,
+    String? fullAddress,
+    String? area,
+    String? city,
+    String? pincode,
+    String? landmark,
+    bool? isDefault,
+    double? lat,
+    double? lng,
+  }) {
+    return Address(
+      id: id ?? this.id,
+      label: label ?? this.label,
+      fullAddress: fullAddress ?? this.fullAddress,
+      area: area ?? this.area,
+      city: city ?? this.city,
+      pincode: pincode ?? this.pincode,
+      landmark: landmark ?? this.landmark,
+      isDefault: isDefault ?? this.isDefault,
+      lat: lat ?? this.lat,
+      lng: lng ?? this.lng,
+    );
+  }
+}
+
+class OrderEvent {
+  final String message;
+  final DateTime time;
+  const OrderEvent({required this.message, required this.time});
 }
 
 class Order {
   final String id;
   final String vendorId;
   final String vendorName;
+  final List<OrderEvent> events;
   final List<CartItem> items;
   final OrderStatus status;
   final DateTime placedAt;
@@ -64,6 +101,7 @@ class Order {
     required this.id,
     required this.vendorId,
     required this.vendorName,
+    this.events = const [],
     required this.items,
     required this.status,
     required this.placedAt,
@@ -120,6 +158,7 @@ class Order {
       id: id,
       vendorId: vendorId,
       vendorName: vendorName,
+      events: events,
       items: items,
       status: status ?? this.status,
       placedAt: placedAt,

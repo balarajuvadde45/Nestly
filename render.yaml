@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: nestly-api
+    runtime: node
+    rootDir: backend
+    plan: starter
+    buildCommand: npm ci && npx prisma generate && npm run build
+    preDeployCommand: npx prisma migrate deploy
+    startCommand: node dist/index.js
+    healthCheckPath: /readyz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 22
+      - key: JWT_EXPIRES_IN
+        value: 1d
+      - key: TRUST_PROXY_HOPS
+        value: 1
+      - key: CORS_ORIGIN
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_VERIFY_SERVICE_SID
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true

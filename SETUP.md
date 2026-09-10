@@ -1,145 +1,61 @@
-# Nestly — Setup Guide (Backend + Maps + Seller)
+# Local Setup
 
-This document lists **exactly what you need to do** on your machine.
+## Prerequisites
 
----
+Use Node.js 22, npm, PostgreSQL, and Flutter 3.47.2 (the current CI pin). Install Android Studio/SDK for Android. iOS compilation and signing require macOS and Xcode. Run `flutter doctor -v` before native builds.
 
-## Architecture
+## Backend
 
-| Piece | Tech | Location |
-|--------|------|----------|
-| API + DB | Node.js, Express, Prisma, SQLite, JWT | `backend/` |
-| Live tracking | Socket.IO + order rider lat/lng | `backend/src/socket.ts` |
-| Customer app | Flutter (Android + Web) — **Nestly** | `lib/` |
-| Seller dashboard | Flutter routes `/seller/*` | `lib/screens/seller/` |
-| Maps | `google_maps_flutter` (+ fallback UI) | `lib/screens/tracking/` |
-| Wisdom Circle | Community tips & Q&A | `lib/screens/wisdom/` |
+From the repository root:
 
----
-
-## What YOU must do
-
-### 1. Configure PostgreSQL (required)
-
-1. Ensure PostgreSQL is running (e.g. service `postgresql-x64-18`).
-2. Copy env template and put **your real password**:
-
-```bash
+```powershell
+Copy-Item backend/.env.example backend/.env
 cd backend
-copy .env.example .env
+npm ci
 ```
 
-Edit `backend/.env`:
+Edit `backend/.env` with a dedicated local database URL and a randomly generated JWT secret. Do not use a production database for development. Configure Twilio Verify for real SMS authentication. Missing provider configuration fails closed; there is no alternate verification code.
 
-```env
-DATABASE_URL=postgresql://postgres:YOUR_REAL_PASSWORD@localhost:5432/postgres?schema=public
-JWT_SECRET=any_long_random_string_you_choose
-```
+Redis is required in production. For local development without Redis, leave `REDIS_URL` blank. Set `CORS_ORIGIN` to the exact local web origin, such as `http://localhost:8080`, and `TRUST_PROXY_HOPS=0` for direct requests.
 
-Optional dedicated database (recommended):
-
-```sql
-CREATE DATABASE nestly;
-```
-
-Then:
-
-```env
-DATABASE_URL=postgresql://postgres:YOUR_REAL_PASSWORD@localhost:5432/nestly?schema=public
-```
-
-### 2. Create tables + seed + start API
-
-```bash
-cd backend
-npm install
-npm run db:setup    # validates .env, creates tables, seeds demo data
-npm run dev         # http://localhost:4000
-```
-
-Check: http://localhost:4000/health → `{ "ok": true, "database": "up", ... }`.
-
-**Demo accounts** (password for all: `password123`):
-
-| Role | Email |
-|------|--------|
-| Customer | `priya@nestly.app` |
-| Seller (Amma's Kitchen) | `amma@nestly.app` |
-| Seller (Pickles) | `pickles@nestly.app` |
-| Admin | `admin@nestly.app` |
-| Phone OTP | any 10 digits + OTP **`123456`** |
-
-### 2. Google Maps API key (optional for real maps)
-
-Without a key, live tracking still works (coordinates + status).
-
-1. [Google Cloud Console](https://console.cloud.google.com/)
-2. Enable **Maps SDK for Android** + **Maps JavaScript API**
-3. Create an API key
-
-```bash
-flutter run -d chrome --dart-define=GOOGLE_MAPS_API_KEY=YOUR_KEY --dart-define=API_BASE_URL=http://localhost:4000
-```
-
-Android: put `GOOGLE_MAPS_API_KEY=YOUR_KEY` in `android/local.properties`  
-Package for restriction: `com.example.nestly`
-
-### 3. Point the app at the backend
-
-| Where you run Flutter | `API_BASE_URL` |
-|------------------------|----------------|
-| Chrome / desktop | `http://localhost:4000` |
-| Android emulator | `http://10.0.2.2:4000` |
-| Physical phone | `http://YOUR_PC_LAN_IP:4000` |
-
-### 4. After rename to Nestly — re-seed DB
-
-If you still have old `homefoods.app` accounts:
-
-```bash
-cd backend
-npm run db:reset
-```
-
----
-
-## Run full stack
-
-**Terminal 1 — API**
-```bash
-cd backend
+```powershell
+npm run db:setup
 npm run dev
 ```
 
-**Terminal 2 — Flutter**
-```bash
+The setup command validates configuration, generates Prisma, applies versioned migrations, and upserts reference categories. It does not create accounts or a catalog. Check `http://localhost:4000/readyz`.
+
+Optional local PostgreSQL and Redis containers are defined in `docker-compose.yml`. Its database credentials are local-only; do not expose its ports publicly or reuse it as the production deployment.
+
+## Application
+
+In a second terminal at the repository root:
+
+```powershell
 flutter pub get
-flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:4000
+flutter run -d chrome --web-port=8080 --dart-define=API_BASE_URL=http://localhost:4000
 ```
 
-### Seller dashboard
+For an Android emulator, use `API_BASE_URL=http://10.0.2.2:4000` and the device ID from `flutter devices`. Physical devices need a reachable development host. Cleartext HTTP is allowed only by the Android debug configuration.
 
-1. Profile → **Seller dashboard** (or `/seller`)
-2. Login: `amma@nestly.app` / `password123`
+Create a customer using a real verified phone number. Open a business from that account, complete its address and store image, add products, then have an administrator review it. Empty catalog screens are intentional until approved sellers publish real products.
 
-### Wisdom Circle
+## First Administrator
 
-Bottom/side nav → **Wisdom** — tips, remedies, Q&A from elders
+In an administrative terminal, provide `ADMIN_EMAIL`, `ADMIN_NAME`, `ADMIN_PHONE`, and `ADMIN_PASSWORD` through secure environment configuration, then run `npm run admin:create` from `backend/`. The password must contain 16-72 characters. The command creates a new administrator; it does not overwrite an existing account. Clear temporary environment secrets afterwards. Never put credentials into documentation or source control.
 
----
+## Verification
 
-## Coupons
+```powershell
+flutter analyze
+flutter test
+cd backend
+npm run typecheck
+npm test
+npm run build
+npm audit
+```
 
-- `NESTLY20` — 20% off up to ₹100  
-- `FLAT50` — ₹50 off above ₹199  
-- `FIRST100` — ₹100 off  
+Database integration tests require `TEST_DATABASE_URL` pointing to an isolated database named exactly `nestly_test`. Apply migrations there first. Without that variable the integration suite is skipped; a green unit run alone does not validate checkout transactions.
 
----
-
-## Troubleshooting
-
-| Issue | Fix |
-|--------|------|
-| App shows mock data only | Backend not running or wrong `API_BASE_URL` |
-| Login fails with old emails | `npm run db:reset` in backend |
-| Android can't reach API | Use `10.0.2.2` not `localhost` |
+Never use `db:reset`, `migrate reset`, or `db push` on production. See [Deployment](DEPLOY.md) for signed releases and migration procedures.

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:http/http.dart' as http;
 import '../core/config/app_config.dart';
 
@@ -9,7 +10,7 @@ class ApiException implements Exception {
   ApiException(this.statusCode, this.message);
 
   @override
-  String toString() => 'ApiException($statusCode): $message';
+  String toString() => message;
 }
 
 class ApiClient {
@@ -32,7 +33,8 @@ class ApiClient {
     return {
       if (jsonBody) 'Content-Type': 'application/json',
       'Accept': 'application/json',
-      if (_token != null && _token!.isNotEmpty) 'Authorization': 'Bearer $_token',
+      if (_token != null && _token!.isNotEmpty)
+        'Authorization': 'Bearer $_token',
     };
   }
 
@@ -40,37 +42,50 @@ class ApiClient {
     String path, {
     Map<String, String>? query,
   }) async {
-    final res = await _client.get(_uri(path, query), headers: _headers());
-    return _decode(res);
+    return _request(_client.get(_uri(path, query), headers: _headers()));
   }
 
   Future<Map<String, dynamic>> post(
     String path, {
     Map<String, dynamic>? body,
   }) async {
-    final res = await _client.post(
-      _uri(path),
-      headers: _headers(jsonBody: true),
-      body: body == null ? null : jsonEncode(body),
+    return _request(
+      _client.post(
+        _uri(path),
+        headers: _headers(jsonBody: true),
+        body: body == null ? null : jsonEncode(body),
+      ),
     );
-    return _decode(res);
   }
 
   Future<Map<String, dynamic>> patch(
     String path, {
     Map<String, dynamic>? body,
   }) async {
-    final res = await _client.patch(
-      _uri(path),
-      headers: _headers(jsonBody: true),
-      body: body == null ? null : jsonEncode(body),
+    return _request(
+      _client.patch(
+        _uri(path),
+        headers: _headers(jsonBody: true),
+        body: body == null ? null : jsonEncode(body),
+      ),
     );
-    return _decode(res);
   }
 
   Future<Map<String, dynamic>> delete(String path) async {
-    final res = await _client.delete(_uri(path), headers: _headers());
-    return _decode(res);
+    return _request(_client.delete(_uri(path), headers: _headers()));
+  }
+
+  Future<Map<String, dynamic>> _request(Future<http.Response> request) async {
+    try {
+      return _decode(await request.timeout(const Duration(seconds: 20)));
+    } on TimeoutException {
+      throw ApiException(0, 'The request timed out. Please try again.');
+    } on http.ClientException {
+      throw ApiException(
+        0,
+        'Unable to connect. Check your connection and try again.',
+      );
+    }
   }
 
   Map<String, dynamic> _decode(http.Response res) {
@@ -83,8 +98,11 @@ class ApiClient {
         } else {
           json = {'data': decoded};
         }
-      } catch (_) {
-        json = {'error': res.body};
+      } on FormatException {
+        throw ApiException(
+          res.statusCode,
+          'Unexpected server response. Please try later.',
+        );
       }
     }
     if (res.statusCode >= 400) {
@@ -95,6 +113,8 @@ class ApiClient {
     }
     return json;
   }
+
+  void close() => _client.close();
 
   Future<bool> healthCheck() async {
     try {

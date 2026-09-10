@@ -1,77 +1,55 @@
 import http from 'http';
-import express from 'express';
-import cors from 'cors';
 import { env, dbPublicInfo } from './lib/env';
 import { prisma } from './lib/prisma';
-import { errorHandler, notFound } from './middleware/error';
-import { authRouter } from './routes/auth';
-import { catalogRouter } from './routes/catalog';
-import { ordersRouter } from './routes/orders';
-import { sellerRouter } from './routes/seller';
-import { addressesRouter } from './routes/addresses';
-import { wisdomRouter } from './routes/wisdom';
-import { applicationsRouter } from './routes/applications';
-import { initSocket } from './socket';
+import { logger } from './lib/logger';
+import { createApp } from './app';
+import { redis } from './lib/redis';
+import { initSocket, closeSocket } from './socket';
 
-async function main() {
-  // Fail fast if DB is unreachable
+async function main(): Promise<void> {
+  // Fail fast if the DB is unreachable.
   try {
     await prisma.$connect();
-    console.log(`PostgreSQL connected: ${dbPublicInfo()}`);
+    if (redis) await redis.connect();
+    logger.info(`PostgreSQL connected: ${dbPublicInfo()}`);
   } catch (err) {
-    console.error(
+    logger.error(
+      { err },
       'Failed to connect to PostgreSQL. Check DATABASE_URL / DB_* in backend/.env',
     );
-    console.error(err);
     process.exit(1);
   }
 
-  const app = express();
-  app.use(
-    cors({
-      origin: env.corsOrigin === '*' ? true : env.corsOrigin.split(','),
-    }),
-  );
-  app.use(express.json({ limit: '2mb' }));
-
-  app.get('/health', async (_req, res) => {
-    let db = 'unknown';
-    try {
-      await prisma.$queryRaw`SELECT 1`;
-      db = 'up';
-    } catch {
-      db = 'down';
-    }
-    res.json({
-      ok: db === 'up',
-      service: 'nestly-api',
-      database: db,
-      time: new Date().toISOString(),
-    });
-  });
-
-  app.use('/api/auth', authRouter);
-  app.use('/api/catalog', catalogRouter);
-  app.use('/api/orders', ordersRouter);
-  app.use('/api/seller', sellerRouter);
-  app.use('/api/addresses', addressesRouter);
-  app.use('/api/wisdom', wisdomRouter);
-  app.use('/api/seller-applications', applicationsRouter);
-
-  app.use(notFound);
-  app.use(errorHandler);
-
+  const app = createApp();
   const server = http.createServer(app);
-  initSocket(server);
+  await initSocket(server);
 
   server.listen(env.port, () => {
-    console.log(`Nestly API listening on http://localhost:${env.port}`);
-    console.log(`Health: http://localhost:${env.port}/health`);
-    console.log(`Socket.IO ready for live tracking`);
+    logger.info({ port: env.port }, 'Nestly API ready');
   });
+
+  // Graceful shutdown: stop accepting connections, drain, disconnect DB.
+  const shutdown = (signal: string): void => {
+    logger.info(`${signal} received — shutting down gracefully`);
+    void closeSocket();
+    server.close(() => {
+      void Promise.all([prisma.$disconnect(), redis?.isOpen ? redis.quit() : Promise.resolve()]).finally(() => {
+        logger.info('HTTP server closed and DB disconnected');
+        process.exit(0);
+      });
+    });
+    // Force-exit if a connection refuses to drain.
+    setTimeout(() => {
+      logger.error('Forced shutdown after 10s timeout');
+      process.exit(1);
+    }, 10_000).unref();
+  };
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
 main().catch((e) => {
-  console.error(e);
+  logger.error({ err: e }, 'Fatal startup error');
   process.exit(1);
 });

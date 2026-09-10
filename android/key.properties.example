@@ -1,0 +1,5 @@
+# Copy to android/key.properties (do not commit) when you publish to Play.
+storePassword=
+keyPassword=
+keyAlias=nestly
+storeFile=keystore/nestly-upload.jks

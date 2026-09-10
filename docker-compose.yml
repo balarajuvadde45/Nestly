@@ -1,0 +1,66 @@
+# Local development backing services for Nestly.
+#
+#   docker compose up -d                      # Postgres + Redis (recommended for local dev)
+#   docker compose --profile full up --build  # also build & run the API in a container
+#
+# The API is normally run with hot reload instead:  cd backend && npm run dev
+name: nestly
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nestly
+      POSTGRES_PASSWORD: nestly
+      POSTGRES_DB: nestly
+    ports:
+      # host 5433 -> container 5432, so this never clashes with a Postgres
+      # you may already run locally on 5432 (e.g. your current UAT setup).
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nestly -d nestly"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Optional: run the API in a container too (parity with production).
+  # Only useful after migrations exist. Enable with: --profile full
+  api:
+    profiles: ["full"]
+    build:
+      context: ./backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: "4000"
+      DATABASE_URL: postgresql://nestly:nestly@postgres:5432/nestly?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in your shell}
+      CORS_ORIGIN: "http://localhost:8080"
+    ports:
+      - "127.0.0.1:4000:4000"
+
+volumes:
+  pgdata:
+  redisdata:

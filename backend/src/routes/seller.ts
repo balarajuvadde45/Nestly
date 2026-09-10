@@ -15,87 +15,122 @@ import {
 import {
   AuthedRequest,
   requireAuth,
-  requireRole,
+  requireSellerAccess,
 } from '../middleware/auth';
+import { transitionOrder } from '../lib/order-lifecycle';
 import { getIo } from '../socket';
+import {
+  defaultFulfillmentModes,
+  categoryForProductType,
+  fulfillmentModeSchema,
+  normalizeString,
+  normalizeWholesaleTiers,
+  productTypeSchema,
+  vendorTypeSchema,
+  wholesaleTierSchema,
+} from '../lib/marketplace';
 
 export const sellerRouter = Router();
 
-sellerRouter.use(requireAuth, requireRole(Role.SELLER, Role.ADMIN));
+/** Seller dashboard API — JWT SELLER or DB-owned business (stale buyer token safe) */
+sellerRouter.use(requireAuth, requireSellerAccess());
 
 async function getOwnedVendor(userId: string, role: Role) {
-  if (role === Role.ADMIN) {
-    return prisma.vendor.findFirst({ orderBy: { createdAt: 'asc' } });
-  }
+
   return prisma.vendor.findUnique({ where: { ownerId: userId } });
 }
 
-/** Register / claim a seller storefront for the logged-in seller */
-sellerRouter.post('/onboard', async (req: AuthedRequest, res, next) => {
+async function logSeller(
+  userId: string,
+  action: string,
+  message?: string,
+  meta?: Record<string, unknown>,
+) {
   try {
-    const schema = z.object({
-      name: z.string().min(2),
-      tagline: z.string().min(2),
-      description: z.string().min(10),
-      type: z.enum([
-        'HOME_COOK',
-        'CLOUD_KITCHEN',
-        'HOME_BUSINESS',
-        'BOUTIQUE',
-      ]),
-      area: z.string().min(2),
-      city: z.string().default('Hyderabad'),
-      imageUrl: z.string().url().optional(),
-      coverUrl: z.string().url().optional(),
-      categories: z.array(z.string()).default([]),
-      tags: z.array(z.string()).default([]),
-      isPureVeg: z.boolean().optional(),
-      freeDelivery: z.boolean().optional(),
-      lat: z.number().optional(),
-      lng: z.number().optional(),
-    });
-    const body = schema.parse(req.body);
-
-    const existing = await prisma.vendor.findUnique({
-      where: { ownerId: req.user!.sub },
-    });
-    if (existing) {
-      res.status(409).json({ error: 'You already have a storefront', vendor: serializeVendor(existing) });
-      return;
-    }
-
-    // Ensure user is SELLER
-    await prisma.user.update({
-      where: { id: req.user!.sub },
-      data: { role: Role.SELLER },
-    });
-
-    const vendor = await prisma.vendor.create({
+    await prisma.activityLog.create({
       data: {
-        ownerId: req.user!.sub,
-        name: body.name,
-        tagline: body.tagline,
-        description: body.description,
-        type: body.type as VendorType,
-        area: body.area,
-        city: body.city,
-        imageUrl:
-          body.imageUrl ||
-          'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=400',
-        coverUrl:
-          body.coverUrl ||
-          'https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=800',
-        categoriesJson: JSON.stringify(body.categories),
-        tagsJson: JSON.stringify(body.tags),
-        isPureVeg: body.isPureVeg ?? false,
-        freeDelivery: body.freeDelivery ?? false,
-        lat: body.lat ?? 17.4486,
-        lng: body.lng ?? 78.3908,
-        isApproved: true,
+        userId,
+        mode: 'SELLER',
+        action,
+        message,
+        metaJson: meta ? JSON.stringify(meta) : null,
       },
     });
+  } catch {
+    // non-blocking
+  }
+}
 
-    res.status(201).json({ vendor: serializeVendor(vendor) });
+const nullableTrimmedString = z
+  .string()
+  .trim()
+  .optional()
+  .nullable();
+
+const imageUrlSchema = z.string().url().refine(value => {
+  const url = new URL(value);
+  return url.protocol === 'https:' && !url.username && !url.password;
+}, 'Use a public HTTPS image URL without credentials');
+
+const productCreateSchema = z.object({
+  name: z.string().min(2),
+  description: z.string().min(5),
+  price: z.number().positive(),
+  mrp: z.number().positive().optional(),
+  imageUrl: imageUrlSchema,
+  type: productTypeSchema.default('FOOD'),
+  isVeg: z.boolean().default(true),
+  isAvailable: z.boolean().default(true),
+  categoryId: z.string().optional().nullable(),
+  tags: z.array(z.string()).default([]),
+  sizes: z.array(z.string()).default([]),
+  colors: z.array(z.string()).default([]),
+  prepTimeMins: z.number().int().positive().optional().nullable(),
+  brandName: nullableTrimmedString,
+  sku: nullableTrimmedString,
+  unitLabel: nullableTrimmedString,
+  minOrderQuantity: z.number().int().min(1).default(1),
+  casePackQuantity: z.number().int().min(1).optional().nullable(),
+  maxOrderQuantity: z.number().int().min(1).optional().nullable(),
+  stockQuantity: z.number().int().min(0).optional().nullable(),
+  hsnCode: nullableTrimmedString,
+  gstRate: z.number().min(0).max(28).optional().nullable(),
+  batchNumber: nullableTrimmedString,
+  manufactureDate: z.coerce.date().optional().nullable(),
+  expiryDate: z.coerce.date().optional().nullable(),
+  shelfLifeDays: z.number().int().min(1).optional().nullable(),
+  manufacturerName: nullableTrimmedString,
+  packerName: nullableTrimmedString,
+  originCountry: nullableTrimmedString,
+  fssaiLicense: nullableTrimmedString,
+  isReturnable: z.boolean().default(false),
+  returnWindowDays: z.number().int().min(1).optional().nullable(),
+  madeToOrder: z.boolean().default(false),
+  dispatchTimeDays: z.number().int().min(0).optional().nullable(),
+  wholesaleTiers: z.array(wholesaleTierSchema).default([]),
+  material: nullableTrimmedString,
+});
+
+const productPatchSchema = productCreateSchema.partial().extend({
+  mrp: z.number().positive().optional().nullable(),
+});
+
+/** Register / claim a seller storefront (legacy path — prefer /api/buyer/open-business) */
+sellerRouter.post('/onboard', (_req, res) => {
+  res.status(410).json({ error: 'Create your business through /api/buyer/open-business' });
+});
+
+/** Seller-side activity log */
+sellerRouter.post('/log', async (req: AuthedRequest, res, next) => {
+  try {
+    const schema = z.object({
+      action: z.string().min(2),
+      message: z.string().optional(),
+      meta: z.record(z.unknown()).optional(),
+    });
+    const body = schema.parse(req.body);
+    await logSeller(req.user!.sub, body.action, body.message, body.meta);
+    res.status(201).json({ ok: true, mode: 'seller' });
   } catch (e) {
     next(e);
   }
@@ -146,7 +181,7 @@ sellerRouter.get('/dashboard', async (req: AuthedRequest, res, next) => {
     ]);
 
     res.json({
-      vendor: serializeVendor(vendor),
+      vendor: serializeVendor(vendor, true),
       stats: {
         productCount: products,
         totalOrders: revenueAgg._count,
@@ -185,23 +220,8 @@ sellerRouter.post('/products', async (req: AuthedRequest, res, next) => {
       res.status(404).json({ error: 'No storefront' });
       return;
     }
-    const schema = z.object({
-      name: z.string().min(2),
-      description: z.string().min(5),
-      price: z.number().positive(),
-      mrp: z.number().positive().optional(),
-      imageUrl: z.string().url(),
-      type: z
-        .enum(['FOOD', 'PICKLE', 'CLOTHES', 'SNACK', 'SWEET', 'GROCERY', 'OTHER'])
-        .default('FOOD'),
-      isVeg: z.boolean().default(true),
-      isAvailable: z.boolean().default(true),
-      categoryId: z.string().optional(),
-      tags: z.array(z.string()).default([]),
-      sizes: z.array(z.string()).default([]),
-      prepTimeMins: z.number().int().optional(),
-    });
-    const body = schema.parse(req.body);
+    const body = productCreateSchema.parse(req.body);
+    const wholesaleTiers = normalizeWholesaleTiers(body.wholesaleTiers);
     const product = await prisma.product.create({
       data: {
         vendorId: vendor.id,
@@ -209,11 +229,36 @@ sellerRouter.post('/products', async (req: AuthedRequest, res, next) => {
         description: body.description,
         price: body.price,
         mrp: body.mrp,
+        brandName: normalizeString(body.brandName),
+        sku: normalizeString(body.sku),
+        unitLabel: normalizeString(body.unitLabel),
+        minOrderQuantity: body.minOrderQuantity,
+        casePackQuantity: body.casePackQuantity,
+        maxOrderQuantity: body.maxOrderQuantity,
+        stockQuantity: body.stockQuantity,
+        hsnCode: normalizeString(body.hsnCode),
+        gstRate: body.gstRate,
+        batchNumber: normalizeString(body.batchNumber),
+        manufactureDate: body.manufactureDate,
+        expiryDate: body.expiryDate,
+        shelfLifeDays: body.shelfLifeDays,
+        manufacturerName: normalizeString(body.manufacturerName),
+        packerName: normalizeString(body.packerName),
+        originCountry: normalizeString(body.originCountry) ?? 'India',
+        fssaiLicense:
+          normalizeString(body.fssaiLicense) ?? vendor.fssaiLicense,
+        isReturnable: body.isReturnable,
+        returnWindowDays: body.returnWindowDays,
+        madeToOrder: body.madeToOrder,
+        dispatchTimeDays: body.dispatchTimeDays,
+        wholesaleTiersJson: JSON.stringify(wholesaleTiers),
+        colorsJson: JSON.stringify(body.colors),
+        material: normalizeString(body.material),
         imageUrl: body.imageUrl,
         type: body.type as ProductType,
         isVeg: body.isVeg,
         isAvailable: body.isAvailable,
-        categoryId: body.categoryId,
+        categoryId: body.categoryId ?? categoryForProductType(body.type),
         tagsJson: JSON.stringify(body.tags),
         sizesJson: JSON.stringify(body.sizes),
         prepTimeMins: body.prepTimeMins,
@@ -233,26 +278,13 @@ sellerRouter.patch('/products/:id', async (req: AuthedRequest, res, next) => {
       return;
     }
     const existing = await prisma.product.findFirst({
-      where: { id: req.params.id, vendorId: vendor.id },
+      where: { id: String(req.params.id), vendorId: vendor.id },
     });
     if (!existing) {
       res.status(404).json({ error: 'Product not found' });
       return;
     }
-    const schema = z.object({
-      name: z.string().min(2).optional(),
-      description: z.string().min(5).optional(),
-      price: z.number().positive().optional(),
-      mrp: z.number().positive().nullable().optional(),
-      imageUrl: z.string().url().optional(),
-      isVeg: z.boolean().optional(),
-      isAvailable: z.boolean().optional(),
-      categoryId: z.string().nullable().optional(),
-      tags: z.array(z.string()).optional(),
-      sizes: z.array(z.string()).optional(),
-      prepTimeMins: z.number().int().nullable().optional(),
-    });
-    const body = schema.parse(req.body);
+    const body = productPatchSchema.parse(req.body);
     const product = await prisma.product.update({
       where: { id: existing.id },
       data: {
@@ -260,10 +292,65 @@ sellerRouter.patch('/products/:id', async (req: AuthedRequest, res, next) => {
         description: body.description,
         price: body.price,
         mrp: body.mrp === null ? null : body.mrp,
+        brandName:
+          body.brandName === undefined ? undefined : normalizeString(body.brandName),
+        sku: body.sku === undefined ? undefined : normalizeString(body.sku),
+        unitLabel:
+          body.unitLabel === undefined ? undefined : normalizeString(body.unitLabel),
+        minOrderQuantity: body.minOrderQuantity,
+        casePackQuantity:
+          body.casePackQuantity === null ? null : body.casePackQuantity,
+        maxOrderQuantity:
+          body.maxOrderQuantity === null ? null : body.maxOrderQuantity,
+        stockQuantity:
+          body.stockQuantity === null ? null : body.stockQuantity,
+        hsnCode:
+          body.hsnCode === undefined ? undefined : normalizeString(body.hsnCode),
+        gstRate: body.gstRate === null ? null : body.gstRate,
+        batchNumber:
+          body.batchNumber === undefined
+            ? undefined
+            : normalizeString(body.batchNumber),
+        manufactureDate:
+          body.manufactureDate === null ? null : body.manufactureDate,
+        expiryDate: body.expiryDate === null ? null : body.expiryDate,
+        shelfLifeDays:
+          body.shelfLifeDays === null ? null : body.shelfLifeDays,
+        manufacturerName:
+          body.manufacturerName === undefined
+            ? undefined
+            : normalizeString(body.manufacturerName),
+        packerName:
+          body.packerName === undefined
+            ? undefined
+            : normalizeString(body.packerName),
+        originCountry:
+          body.originCountry === undefined
+            ? undefined
+            : normalizeString(body.originCountry),
+        fssaiLicense:
+          body.fssaiLicense === undefined
+            ? undefined
+            : normalizeString(body.fssaiLicense),
+        isReturnable: body.isReturnable,
+        returnWindowDays:
+          body.returnWindowDays === null ? null : body.returnWindowDays,
+        madeToOrder: body.madeToOrder,
+        dispatchTimeDays:
+          body.dispatchTimeDays === null ? null : body.dispatchTimeDays,
+        wholesaleTiersJson:
+          body.wholesaleTiers === undefined
+            ? undefined
+            : JSON.stringify(normalizeWholesaleTiers(body.wholesaleTiers)),
+        colorsJson:
+          body.colors === undefined ? undefined : JSON.stringify(body.colors),
+        material:
+          body.material === undefined ? undefined : normalizeString(body.material),
         imageUrl: body.imageUrl,
+        type: body.type as ProductType | undefined,
         isVeg: body.isVeg,
         isAvailable: body.isAvailable,
-        categoryId: body.categoryId === null ? null : body.categoryId,
+        categoryId: body.categoryId === null ? null : body.categoryId ?? (body.type ? categoryForProductType(body.type) : undefined),
         tagsJson: body.tags ? JSON.stringify(body.tags) : undefined,
         sizesJson: body.sizes ? JSON.stringify(body.sizes) : undefined,
         prepTimeMins:
@@ -284,13 +371,13 @@ sellerRouter.delete('/products/:id', async (req: AuthedRequest, res, next) => {
       return;
     }
     const existing = await prisma.product.findFirst({
-      where: { id: req.params.id, vendorId: vendor.id },
+      where: { id: String(req.params.id), vendorId: vendor.id },
     });
     if (!existing) {
       res.status(404).json({ error: 'Product not found' });
       return;
     }
-    await prisma.product.delete({ where: { id: existing.id } });
+    await prisma.product.update({ where: { id: existing.id }, data: { isAvailable: false } });
     res.json({ ok: true });
   } catch (e) {
     next(e);
@@ -324,93 +411,28 @@ sellerRouter.get('/orders', async (req: AuthedRequest, res, next) => {
   }
 });
 
-sellerRouter.patch(
-  '/orders/:id/status',
-  async (req: AuthedRequest, res, next) => {
-    try {
-      const vendor = await getOwnedVendor(req.user!.sub, req.user!.role);
-      if (!vendor) {
-        res.status(404).json({ error: 'No storefront' });
-        return;
-      }
-      const schema = z.object({
-        status: z.enum([
-          'CONFIRMED',
-          'PREPARING',
-          'OUT_FOR_DELIVERY',
-          'DELIVERED',
-          'CANCELLED',
-        ]),
-        message: z.string().optional(),
-      });
-      const body = schema.parse(req.body);
-      const order = await prisma.order.findFirst({
-        where: { id: req.params.id, vendorId: vendor.id },
-        include: { address: true },
-      });
-      if (!order) {
-        res.status(404).json({ error: 'Order not found' });
-        return;
-      }
-
-      const status = body.status as OrderStatus;
-      const updateData: {
-        status: OrderStatus;
-        deliveryPartner?: string;
-        riderLat?: number;
-        riderLng?: number;
-      } = { status };
-
-      if (status === OrderStatus.OUT_FOR_DELIVERY) {
-        updateData.deliveryPartner = order.deliveryPartner || 'Ravi K.';
-        updateData.riderLat = vendor.lat;
-        updateData.riderLng = vendor.lng;
-      }
-
-      const updated = await prisma.order.update({
-        where: { id: order.id },
-        data: {
-          ...updateData,
-          events: {
-            create: {
-              status,
-              message:
-                body.message ||
-                `Status updated to ${status.replaceAll('_', ' ').toLowerCase()}`,
-              lat: updateData.riderLat,
-              lng: updateData.riderLng,
-            },
-          },
-        },
-        include: {
-          items: true,
-          events: { orderBy: { createdAt: 'asc' } },
-          vendor: true,
-          address: true,
-        },
-      });
-
-      const payload = serializeOrder(updated);
-      getIo()?.to(`order:${order.id}`).emit('order:updated', payload);
-      getIo()?.to(`user:${order.customerId}`).emit('order:updated', payload);
-
-      // Simulate rider movement when out for delivery
-      if (status === OrderStatus.OUT_FOR_DELIVERY) {
-        simulateRider(
-          order.id,
-          vendor.lat,
-          vendor.lng,
-          order.address.lat ?? 17.44,
-          order.address.lng ?? 78.39,
-        );
-      }
-
-      res.json({ order: payload });
-    } catch (e) {
-      next(e);
+sellerRouter.patch('/orders/:id/status', async (req: AuthedRequest, res, next) => {
+  try {
+    const vendor = await getOwnedVendor(req.user!.sub, req.user!.role);
+    if (!vendor) { res.status(404).json({ error: 'No storefront' }); return; }
+    const body = z.object({
+      status: z.enum(['CONFIRMED', 'PREPARING', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED']),
+      message: z.string().max(500).optional(),
+      cashCollected: z.boolean().optional(),
+    }).parse(req.body);
+    if (body.status === 'DELIVERED' && body.cashCollected !== true) {
+      res.status(400).json({ error: 'Confirm cash collection before marking delivery complete' }); return;
     }
-  },
-);
+    const order = await transitionOrder(
+      { id: String(req.params.id), vendorId: vendor.id }, body.status,
+      body.message || 'Status updated to ' + body.status.toLowerCase().replaceAll('_', ' '),
+    );
+    const payload = serializeOrder(order);
+    getIo()?.to('order:' + order.id).emit('order:updated', payload);
+    getIo()?.to('user:' + order.customerId).emit('order:updated', payload);
+    res.json({ order: payload });
+  } catch (e) { next(e); }
+});
 
 sellerRouter.patch('/store', async (req: AuthedRequest, res, next) => {
   try {
@@ -423,109 +445,90 @@ sellerRouter.patch('/store', async (req: AuthedRequest, res, next) => {
       name: z.string().min(2).optional(),
       tagline: z.string().optional(),
       description: z.string().optional(),
+      area: z.string().min(2).optional(),
+      city: z.string().min(2).optional(),
+      businessAddress: z.string().nullable().optional(),
+      pincode: z.string().regex(/^\d{6}$/).nullable().optional(),
+      premisesType: z.string().optional(),
+      supportPhone: z.string().nullable().optional(),
+      supportEmail: z.string().email().nullable().optional(),
+      gstin: z.string().nullable().optional(),
+      pan: z.string().nullable().optional(),
+      fssaiLicense: z.string().nullable().optional(),
+      fssaiExpiry: z.coerce.date().nullable().optional(),
+      bankAccountLast4: z.string().regex(/^\d{4}$/).nullable().optional(),
+      fulfillmentModes: z.array(fulfillmentModeSchema).optional(),
+      serviceRadiusKm: z.number().positive().optional(),
+      gstInvoiceAvailable: z.boolean().optional(),
+      acceptsWholesale: z.boolean().optional(),
       isOpen: z.boolean().optional(),
       freeDelivery: z.boolean().optional(),
+      minOrder: z.number().min(0).nullable().optional(),
       offerText: z.string().nullable().optional(),
-      imageUrl: z.string().url().optional(),
-      coverUrl: z.string().url().optional(),
-      deliveryTimeMins: z.number().int().optional(),
+      imageUrl: imageUrlSchema.optional(),
+      coverUrl: imageUrlSchema.optional(),
+      deliveryTimeMins: z.number().int().min(1).max(10080).optional(),
     });
     const body = schema.parse(req.body);
-    const updated = await prisma.vendor.update({
+    const needsReview = ['businessAddress', 'city', 'pincode', 'gstin', 'pan', 'fssaiLicense', 'fssaiExpiry'].some(
+      key => key in body && body[key as keyof typeof body] !== vendor[key as keyof typeof vendor],
+    );
+    const updated = await prisma.$transaction(async tx => {
+      if (needsReview) await tx.sellerApplication.updateMany({
+        where: { vendorId: vendor.id }, data: { status: 'PENDING', reviewedAt: null, reviewedBy: null },
+      });
+      return tx.vendor.update({
       where: { id: vendor.id },
       data: {
+        ...(needsReview ? { isApproved: false, kycStatus: 'PENDING' } : {}),
         name: body.name,
         tagline: body.tagline,
         description: body.description,
+        area: body.area,
+        city: body.city,
+        businessAddress:
+          body.businessAddress === undefined
+            ? undefined
+            : normalizeString(body.businessAddress),
+        pincode:
+          body.pincode === undefined ? undefined : normalizeString(body.pincode),
+        premisesType: body.premisesType,
+        supportPhone:
+          body.supportPhone === undefined
+            ? undefined
+            : normalizeString(body.supportPhone),
+        supportEmail:
+          body.supportEmail === undefined
+            ? undefined
+            : normalizeString(body.supportEmail),
+        gstin: body.gstin === undefined ? undefined : normalizeString(body.gstin),
+        pan: body.pan === undefined ? undefined : normalizeString(body.pan),
+        fssaiLicense:
+          body.fssaiLicense === undefined
+            ? undefined
+            : normalizeString(body.fssaiLicense),
+        fssaiExpiry: body.fssaiExpiry === null ? null : body.fssaiExpiry,
+        bankAccountLast4:
+          body.bankAccountLast4 === null ? null : body.bankAccountLast4,
+        fulfillmentModesJson:
+          body.fulfillmentModes === undefined
+            ? undefined
+            : JSON.stringify(body.fulfillmentModes),
+        serviceRadiusKm: body.serviceRadiusKm,
+        gstInvoiceAvailable: body.gstInvoiceAvailable,
+        acceptsWholesale: body.acceptsWholesale,
         isOpen: body.isOpen,
         freeDelivery: body.freeDelivery,
+        minOrder: body.minOrder === null ? null : body.minOrder,
         offerText: body.offerText === null ? null : body.offerText,
         imageUrl: body.imageUrl,
         coverUrl: body.coverUrl,
         deliveryTimeMins: body.deliveryTimeMins,
       },
     });
-    res.json({ vendor: serializeVendor(updated) });
+    });
+    res.json({ vendor: serializeVendor(updated, true) });
   } catch (e) {
     next(e);
   }
 });
-
-/** Linear interpolate rider position over ~2 minutes (demo) */
-function simulateRider(
-  orderId: string,
-  fromLat: number,
-  fromLng: number,
-  toLat: number,
-  toLng: number,
-) {
-  const steps = 12;
-  let i = 0;
-  const timer = setInterval(async () => {
-    i += 1;
-    const t = Math.min(1, i / steps);
-    const lat = fromLat + (toLat - fromLat) * t;
-    const lng = fromLng + (toLng - fromLng) * t;
-    try {
-      const order = await prisma.order.findUnique({ where: { id: orderId } });
-      if (
-        !order ||
-        order.status !== OrderStatus.OUT_FOR_DELIVERY
-      ) {
-        clearInterval(timer);
-        return;
-      }
-      const updated = await prisma.order.update({
-        where: { id: orderId },
-        data: { riderLat: lat, riderLng: lng },
-        include: {
-          items: true,
-          events: { orderBy: { createdAt: 'asc' } },
-          vendor: true,
-          address: true,
-        },
-      });
-      getIo()?.to(`order:${orderId}`).emit('tracking:location', {
-        orderId,
-        lat,
-        lng,
-        status: updated.status,
-        deliveryPartner: updated.deliveryPartner,
-      });
-      getIo()?.to(`order:${orderId}`).emit('order:updated', serializeOrder(updated));
-
-      if (t >= 1) {
-        clearInterval(timer);
-        // Auto-deliver at end of demo route
-        const delivered = await prisma.order.update({
-          where: { id: orderId },
-          data: {
-            status: OrderStatus.DELIVERED,
-            riderLat: toLat,
-            riderLng: toLng,
-            events: {
-              create: {
-                status: OrderStatus.DELIVERED,
-                message: 'Order delivered',
-                lat: toLat,
-                lng: toLng,
-              },
-            },
-          },
-          include: {
-            items: true,
-            events: { orderBy: { createdAt: 'asc' } },
-            vendor: true,
-            address: true,
-          },
-        });
-        getIo()
-          ?.to(`order:${orderId}`)
-          .emit('order:updated', serializeOrder(delivered));
-      }
-    } catch (e) {
-      console.error('simulateRider', e);
-      clearInterval(timer);
-    }
-  }, 10_000);
-}

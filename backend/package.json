@@ -1,43 +1,70 @@
 {
   "name": "nestly-backend",
   "version": "1.0.0",
-  "description": "Nestly API — auth, catalog, orders, seller dashboard, live tracking, wisdom",
+  "description": "Nestly marketplace API",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "start": "node dist/index.js",
+    "start:compiled": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev --name init",
-    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
-    "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts",
+    "db:reset": "prisma migrate reset",
     "env:check": "tsx scripts/check-env.ts",
-    "db:setup": "tsx scripts/check-env.ts && prisma generate && prisma db push && tsx prisma/seed.ts",
-    "setup": "npm install && npm run db:setup"
+    "db:setup": "tsx scripts/check-env.ts && prisma generate && prisma migrate deploy && tsx prisma/seed.ts",
+    "setup": "npm install && npm run db:setup",
+    "admin:create": "tsx scripts/create-admin.ts"
   },
-  "keywords": ["nestly", "marketplace"],
+  "keywords": [
+    "nestly",
+    "marketplace"
+  ],
   "license": "UNLICENSED",
   "type": "commonjs",
   "dependencies": {
     "@prisma/client": "^6.10.1",
+    "@socket.io/redis-adapter": "^8.3.0",
     "bcryptjs": "^3.0.2",
+    "compression": "^1.7.5",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
+    "express-rate-limit": "^7.4.1",
+    "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
+    "pino": "^9.5.0",
+    "pino-http": "^10.3.0",
+    "prisma": "^6.10.1",
+    "rate-limit-redis": "^4.3.1",
+    "redis": "^4.7.1",
     "socket.io": "^4.8.1",
+    "tsx": "^4.20.3",
     "uuid": "^11.1.0",
     "zod": "^3.25.67"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
+    "@types/compression": "^1.7.5",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.0.10",
-    "prisma": "^6.10.1",
-    "tsx": "^4.20.3",
-    "typescript": "^5.8.3"
+    "@types/supertest": "^6.0.2",
+    "pino-pretty": "^13.0.0",
+    "supertest": "^7.0.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.7"
+  },
+  "engines": {
+    "node": ">=22 <25"
+  },
+  "overrides": {
+    "deepmerge-ts": "^8.0.0"
   }
 }

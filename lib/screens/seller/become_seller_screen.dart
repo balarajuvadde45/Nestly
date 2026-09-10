@@ -21,8 +21,15 @@ class _BecomeSellerScreenState extends State<BecomeSellerScreen> {
   final _email = TextEditingController();
   final _city = TextEditingController(text: AppConstants.defaultCity);
   final _area = TextEditingController();
+  final _businessAddress = TextEditingController();
+  final _pincode = TextEditingController();
+  final _gstin = TextEditingController();
+  final _pan = TextEditingController();
+  final _fssai = TextEditingController();
   final _message = TextEditingController();
   String _type = 'Home Kitchen';
+  String _premisesType = 'BUSINESS_PLACE';
+  bool _acceptsWholesale = false;
   bool _submitted = false;
   bool _submitting = false;
   String? _error;
@@ -32,15 +39,26 @@ class _BecomeSellerScreenState extends State<BecomeSellerScreen> {
     'Home Kitchen',
     'Cloud Kitchen',
     'Pickles & Spices',
+    'Packaged Food',
     'Home Bakery',
     'Home Boutique',
+    'FMCG Distributor / Wholesale',
     'Kurtis & Ethnic Wear',
     'Handloom & Sarees',
+    'Handmade Products',
     'Kids Ethnic Wear',
     'Custom Stitching',
     'Tiffin Service',
-    'Other Home Business',
+    'Other Local Business',
   ];
+
+  static const _premisesTypes = {
+    'BUSINESS_PLACE': 'Business place',
+    'SHOP': 'Shop',
+    'CLOUD_KITCHEN': 'Cloud kitchen',
+    'WAREHOUSE': 'Warehouse',
+    'HOME_KITCHEN': 'Home kitchen',
+  };
 
   @override
   void dispose() {
@@ -50,6 +68,11 @@ class _BecomeSellerScreenState extends State<BecomeSellerScreen> {
     _email.dispose();
     _city.dispose();
     _area.dispose();
+    _businessAddress.dispose();
+    _pincode.dispose();
+    _gstin.dispose();
+    _pan.dispose();
+    _fssai.dispose();
     _message.dispose();
     super.dispose();
   }
@@ -62,16 +85,27 @@ class _BecomeSellerScreenState extends State<BecomeSellerScreen> {
     });
     try {
       final api = context.read<ApiClient>();
-      final res = await api.post('/api/seller-applications', body: {
-        'applicantName': _name.text.trim(),
-        'businessName': _business.text.trim(),
-        'phone': _phone.text.trim(),
-        if (_email.text.trim().isNotEmpty) 'email': _email.text.trim(),
-        'city': _city.text.trim(),
-        if (_area.text.trim().isNotEmpty) 'area': _area.text.trim(),
-        'businessType': _type,
-        if (_message.text.trim().isNotEmpty) 'message': _message.text.trim(),
-      });
+      final res = await api.post(
+        '/api/seller-applications',
+        body: {
+          'applicantName': _name.text.trim(),
+          'businessName': _business.text.trim(),
+          'phone': _phone.text.trim(),
+          if (_email.text.trim().isNotEmpty) 'email': _email.text.trim(),
+          'city': _city.text.trim(),
+          if (_area.text.trim().isNotEmpty) 'area': _area.text.trim(),
+          'businessType': _type,
+          'premisesType': _premisesType,
+          if (_businessAddress.text.trim().isNotEmpty)
+            'businessAddress': _businessAddress.text.trim(),
+          if (_pincode.text.trim().isNotEmpty) 'pincode': _pincode.text.trim(),
+          if (_gstin.text.trim().isNotEmpty) 'gstin': _gstin.text.trim(),
+          if (_pan.text.trim().isNotEmpty) 'pan': _pan.text.trim(),
+          if (_fssai.text.trim().isNotEmpty) 'fssaiLicense': _fssai.text.trim(),
+          'acceptsWholesale': _acceptsWholesale,
+          if (_message.text.trim().isNotEmpty) 'message': _message.text.trim(),
+        },
+      );
       final app = res['application'] as Map<String, dynamic>?;
       setState(() {
         _submitted = true;
@@ -105,8 +139,11 @@ class _BecomeSellerScreenState extends State<BecomeSellerScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.celebration_rounded,
-                    size: 72, color: AppColors.secondary),
+                const Icon(
+                  Icons.celebration_rounded,
+                  size: 72,
+                  color: AppColors.secondary,
+                ),
                 const SizedBox(height: 16),
                 const Text(
                   'Application saved!',
@@ -115,11 +152,13 @@ class _BecomeSellerScreenState extends State<BecomeSellerScreen> {
                 const SizedBox(height: 8),
                 Text(
                   _applicationId != null
-                      ? 'Your application was stored in Nestly (ref: ${_applicationId!.substring(0, 8)}…).\nOur admin team will review it and contact you.'
-                      : 'Your application was stored. Our admin team will review it.',
+                      ? 'Application saved (ref: ${_applicationId!.substring(0, 8)}). Create your business from your account to complete the seller review.'
+                      : 'Application saved. Open Sell to complete your business profile.',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                      color: AppColors.textSecondary, height: 1.4),
+                    color: AppColors.textSecondary,
+                    height: 1.4,
+                  ),
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(
@@ -154,15 +193,19 @@ class _BecomeSellerScreenState extends State<BecomeSellerScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Built for women-led home businesses',
-                      style:
-                          TextStyle(fontWeight: FontWeight.w800, fontSize: 20),
+                      'Built for home & small businesses worldwide',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 20,
+                      ),
                     ),
                     SizedBox(height: 8),
                     Text(
-                      'Submit your application. Nestly admin will review it in the database and contact you to go live.',
+                      'Sellers can apply with a shop, kitchen, boutique, workshop, or warehouse. Business profiles are reviewed before appearing in the marketplace.',
                       style: TextStyle(
-                          color: AppColors.textSecondary, height: 1.4),
+                        color: AppColors.textSecondary,
+                        height: 1.4,
+                      ),
                     ),
                   ],
                 ),
@@ -244,6 +287,75 @@ class _BecomeSellerScreenState extends State<BecomeSellerScreen> {
                 onChanged: (v) => setState(() => _type = v ?? _type),
               ),
               const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: _premisesType,
+                decoration: const InputDecoration(
+                  labelText: 'Premises type *',
+                  prefixIcon: Icon(Icons.business_outlined),
+                ),
+                items: _premisesTypes.entries
+                    .map(
+                      (e) =>
+                          DropdownMenuItem(value: e.key, child: Text(e.value)),
+                    )
+                    .toList(),
+                onChanged: (v) =>
+                    setState(() => _premisesType = v ?? _premisesType),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _businessAddress,
+                decoration: const InputDecoration(
+                  labelText: 'Business address (optional)',
+                  prefixIcon: Icon(Icons.location_on_outlined),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _pincode,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Pincode (optional)',
+                  prefixIcon: Icon(Icons.pin_drop_outlined),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _fssai,
+                decoration: const InputDecoration(
+                  labelText: 'FSSAI license (for food)',
+                  prefixIcon: Icon(Icons.verified_outlined),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _gstin,
+                      decoration: const InputDecoration(
+                        labelText: 'GSTIN (optional)',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _pan,
+                      decoration: const InputDecoration(
+                        labelText: 'PAN (optional)',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Accept wholesale orders'),
+                value: _acceptsWholesale,
+                onChanged: (v) => setState(() => _acceptsWholesale = v),
+              ),
+              const SizedBox(height: 12),
               TextFormField(
                 controller: _message,
                 maxLines: 3,
@@ -272,7 +384,9 @@ class _BecomeSellerScreenState extends State<BecomeSellerScreen> {
                         height: 22,
                         width: 22,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
                     : const Text('Submit application'),
               ),

@@ -45,14 +45,23 @@ class SellerProvider extends ChangeNotifier {
   String? get error => _error;
   bool get hasStorefront => _vendor != null;
 
+  void clear() {
+    _vendor = null;
+    _products = [];
+    _orders = [];
+    _stats = const SellerStats();
+    _error = null;
+    _loading = false;
+    notifyListeners();
+  }
+
   Future<void> loadDashboard() async {
     _loading = true;
     _error = null;
     notifyListeners();
     try {
       final res = await _api.get('/api/seller/dashboard');
-      _vendor = vendorFromJson(
-          Map<String, dynamic>.from(res['vendor'] as Map));
+      _vendor = vendorFromJson(Map<String, dynamic>.from(res['vendor'] as Map));
       final s = res['stats'] as Map<String, dynamic>? ?? {};
       _stats = SellerStats(
         productCount: (s['productCount'] as num?)?.toInt() ?? 0,
@@ -67,6 +76,7 @@ class SellerProvider extends ChangeNotifier {
 
       _socket.connect();
       _socket.onNewOrder((data) {
+        if (_orders.any((o) => o.id == data['id'])) return;
         final order = orderFromJson(data);
         _orders.insert(0, order);
         _stats = SellerStats(
@@ -127,16 +137,18 @@ class SellerProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      final res = await _api.post('/api/seller/onboard', body: {
-        'name': name,
-        'tagline': tagline,
-        'description': description,
-        'type': type,
-        'area': area,
-        'city': city,
-      });
-      _vendor =
-          vendorFromJson(Map<String, dynamic>.from(res['vendor'] as Map));
+      final res = await _api.post(
+        '/api/seller/onboard',
+        body: {
+          'name': name,
+          'tagline': tagline,
+          'description': description,
+          'type': type,
+          'area': area,
+          'city': city,
+        },
+      );
+      _vendor = vendorFromJson(Map<String, dynamic>.from(res['vendor'] as Map));
       return true;
     } on ApiException catch (e) {
       _error = e.message;
@@ -153,8 +165,9 @@ class SellerProvider extends ChangeNotifier {
   Future<bool> createProduct(Map<String, dynamic> body) async {
     try {
       final res = await _api.post('/api/seller/products', body: body);
-      final p =
-          productFromJson(Map<String, dynamic>.from(res['product'] as Map));
+      final p = productFromJson(
+        Map<String, dynamic>.from(res['product'] as Map),
+      );
       _products.insert(0, p);
       notifyListeners();
       return true;
@@ -168,8 +181,9 @@ class SellerProvider extends ChangeNotifier {
   Future<bool> updateProduct(String id, Map<String, dynamic> body) async {
     try {
       final res = await _api.patch('/api/seller/products/$id', body: body);
-      final p =
-          productFromJson(Map<String, dynamic>.from(res['product'] as Map));
+      final p = productFromJson(
+        Map<String, dynamic>.from(res['product'] as Map),
+      );
       final i = _products.indexWhere((x) => x.id == id);
       if (i >= 0) _products[i] = p;
       notifyListeners();
@@ -196,11 +210,16 @@ class SellerProvider extends ChangeNotifier {
 
   Future<bool> updateOrderStatus(String orderId, String status) async {
     try {
-      final res = await _api.patch('/api/seller/orders/$orderId/status', body: {
-        'status': status,
-      });
-      final order =
-          orderFromJson(Map<String, dynamic>.from(res['order'] as Map));
+      final res = await _api.patch(
+        '/api/seller/orders/$orderId/status',
+        body: {
+          'status': status,
+          if (status == 'DELIVERED') 'cashCollected': true,
+        },
+      );
+      final order = orderFromJson(
+        Map<String, dynamic>.from(res['order'] as Map),
+      );
       final i = _orders.indexWhere((o) => o.id == orderId);
       if (i >= 0) {
         _orders[i] = order;
@@ -219,8 +238,7 @@ class SellerProvider extends ChangeNotifier {
   Future<bool> updateStore(Map<String, dynamic> body) async {
     try {
       final res = await _api.patch('/api/seller/store', body: body);
-      _vendor =
-          vendorFromJson(Map<String, dynamic>.from(res['vendor'] as Map));
+      _vendor = vendorFromJson(Map<String, dynamic>.from(res['vendor'] as Map));
       notifyListeners();
       return true;
     } on ApiException catch (e) {

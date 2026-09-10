@@ -18,13 +18,21 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final auth = context.read<AuthProvider>();
-      if (!auth.isLoggedIn || !auth.isSeller) {
-        context.go('/login?seller=1');
+      if (!auth.isLoggedIn) {
+        context.go('/login?next=/sell');
         return;
       }
-      context.read<SellerProvider>().loadDashboard();
+      if (!auth.hasBusiness && !auth.isSeller) {
+        context.go('/sell');
+        return;
+      }
+      auth.enterSellerMode();
+      // Ensure JWT is SELLER (fixes Forbidden after open-business)
+      await auth.refreshSellerToken();
+      if (!mounted) return;
+      await context.read<SellerProvider>().loadDashboard();
     });
   }
 
@@ -37,15 +45,11 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        leading: IconButton(
-          tooltip: 'Back to Nestly shop',
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => context.go('/home'),
-        ),
+        automaticallyImplyLeading: false,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Seller Dashboard'),
+            const Text('Seller home'),
             if (seller.vendor != null)
               Text(
                 seller.vendor!.name,
@@ -58,73 +62,10 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
           ],
         ),
         actions: [
-          TextButton.icon(
-            onPressed: () => context.go('/home'),
-            icon: const Icon(Icons.storefront_outlined, size: 18),
-            label: const Text('Shop'),
-          ),
           IconButton(
             tooltip: 'Refresh',
             onPressed: () => seller.loadDashboard(),
             icon: const Icon(Icons.refresh_rounded),
-          ),
-          PopupMenuButton<String>(
-            tooltip: 'More',
-            onSelected: (v) {
-              switch (v) {
-                case 'home':
-                  context.go('/home');
-                  break;
-                case 'store':
-                  context.push('/seller/store');
-                  break;
-                case 'profile':
-                  context.go('/profile');
-                  break;
-                case 'logout':
-                  context.read<AuthProvider>().logout();
-                  context.go('/home');
-                  break;
-              }
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(
-                value: 'home',
-                child: ListTile(
-                  dense: true,
-                  leading: Icon(Icons.home_outlined),
-                  title: Text('Customer home'),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-              PopupMenuItem(
-                value: 'store',
-                child: ListTile(
-                  dense: true,
-                  leading: Icon(Icons.settings_outlined),
-                  title: Text('Store settings'),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-              PopupMenuItem(
-                value: 'profile',
-                child: ListTile(
-                  dense: true,
-                  leading: Icon(Icons.person_outline),
-                  title: Text('My profile'),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-              PopupMenuItem(
-                value: 'logout',
-                child: ListTile(
-                  dense: true,
-                  leading: Icon(Icons.logout),
-                  title: Text('Log out'),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-            ],
           ),
         ],
       ),
@@ -326,14 +267,17 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () => context.push('/seller/onboard'),
+              onPressed: () => context.go('/sell/setup'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.secondary,
               ),
-              child: const Text('Create storefront'),
+              child: const Text('Create business account'),
             ),
             TextButton.icon(
-              onPressed: () => context.go('/home'),
+              onPressed: () {
+                context.read<AuthProvider>().enterBuyerMode();
+                context.go('/home');
+              },
               icon: const Icon(Icons.home_outlined),
               label: const Text('Back to Nestly shop'),
             ),

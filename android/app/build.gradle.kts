@@ -1,11 +1,26 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val signingProperties = Properties()
+val signingFile = rootProject.file("key.properties")
+if (signingFile.exists()) signingProperties.load(FileInputStream(signingFile))
+val releaseRequested = gradle.startParameter.taskNames.any { it.contains("Release", ignoreCase = true) }
+if (releaseRequested) {
+    require(signingFile.exists()) { "Release requires android/key.properties and your upload keystore." }
+    listOf("storeFile", "storePassword", "keyAlias", "keyPassword").forEach {
+        require(!signingProperties.getProperty(it).isNullOrBlank()) { "Missing release signing property: $it" }
+    }
+    require(rootProject.file(signingProperties.getProperty("storeFile")).exists()) { "Upload keystore not found." }
+}
 android {
-    namespace = "com.example.nestly"
+    // Play application id is in.nestly.app. Namespace avoids Kotlin reserved word `in`.
+    namespace = "app.nestly.android"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -15,27 +30,28 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.nestly"
+        applicationId = "in.nestly.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        // Pass maps key: ./gradlew -PGOOGLE_MAPS_API_KEY=xxx
-        // or set in local.properties: GOOGLE_MAPS_API_KEY=xxx
-        val mapsKey = (project.findProperty("GOOGLE_MAPS_API_KEY") as String?)
-            ?: (System.getenv("GOOGLE_MAPS_API_KEY"))
-            ?: ""
-        manifestPlaceholders["GOOGLE_MAPS_API_KEY"] = mapsKey
     }
 
+    signingConfigs {
+        create("release") {
+            if (signingFile.exists()) {
+                storeFile = rootProject.file(signingProperties.getProperty("storeFile"))
+                storePassword = signingProperties.getProperty("storePassword")
+                keyAlias = signingProperties.getProperty("keyAlias")
+                keyPassword = signingProperties.getProperty("keyPassword")
+            }
+        }
+    }
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }

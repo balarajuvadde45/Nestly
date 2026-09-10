@@ -48,7 +48,13 @@ class _SplashScreenState extends State<SplashScreen>
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [AppColors.primary, AppColors.primaryDark, Color(0xFF8B0000)],
+            colors: [
+              AppColors.primarySoft,
+              AppColors.primaryLight,
+              Colors.white,
+              AppColors.primarySoft,
+            ],
+            stops: [0.0, 0.35, 0.7, 1.0],
           ),
         ),
         child: FadeTransition(
@@ -59,18 +65,19 @@ class _SplashScreenState extends State<SplashScreen>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  width: 100,
-                  height: 100,
+                  width: 104,
+                  height: 104,
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(28),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.25),
-                        blurRadius: 24,
-                        offset: const Offset(0, 10),
+                        color: AppColors.primary.withValues(alpha: 0.22),
+                        blurRadius: 28,
+                        offset: const Offset(0, 12),
                       ),
                     ],
+                    border: Border.all(color: AppColors.primaryLight, width: 2),
                   ),
                   child: const Icon(
                     Icons.home_work_rounded,
@@ -82,29 +89,33 @@ class _SplashScreenState extends State<SplashScreen>
                 Text(
                   AppConstants.appName,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: Colors.white,
+                        color: AppColors.primaryDark,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.5,
                       ),
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  AppConstants.appTagline,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    fontSize: 15,
-                    fontWeight: FontWeight.w400,
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Text(
+                    AppConstants.appTagline,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppColors.textSecondary.withValues(alpha: 0.95),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      height: 1.35,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 48),
-                SizedBox(
+                const SizedBox(
                   width: 28,
                   height: 28,
                   child: CircularProgressIndicator(
                     strokeWidth: 2.5,
-                    valueColor: AlwaysStoppedAnimation(
-                      Colors.white.withValues(alpha: 0.85),
-                    ),
+                    valueColor:
+                        AlwaysStoppedAnimation(AppColors.primary),
                   ),
                 ),
               ],

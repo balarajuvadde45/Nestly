@@ -74,9 +74,34 @@ export const env = {
   jwtSecret: required('JWT_SECRET', process.env.JWT_SECRET),
   jwtExpiresIn: optional('JWT_EXPIRES_IN', '7d'),
   corsOrigin: optional('CORS_ORIGIN', '*'),
+  redisUrl: optional('REDIS_URL', ''),
+  trustProxyHops: Number(optional('TRUST_PROXY_HOPS', '0')),
+  twilioAccountSid: optional('TWILIO_ACCOUNT_SID', ''),
+  twilioAuthToken: optional('TWILIO_AUTH_TOKEN', ''),
+  twilioVerifyServiceSid: optional('TWILIO_VERIFY_SERVICE_SID', ''),
   defaultCity: optional('DEFAULT_CITY', 'Hyderabad'),
   isDev: optional('NODE_ENV', 'development') !== 'production',
 };
+
+if (!Number.isInteger(env.port) || env.port < 1 || env.port > 65535 ||
+    !Number.isInteger(env.trustProxyHops) || env.trustProxyHops < 0) {
+  throw new Error('Invalid PORT or TRUST_PROXY_HOPS');
+}
+if (!env.isDev) {
+  if (env.jwtSecret.length < 32 || /secret|local_dev|test|dummy/i.test(env.jwtSecret)) {
+    throw new Error('Production JWT_SECRET must be a random secret of at least 32 characters');
+  }
+  if (!env.redisUrl) throw new Error('Production requires REDIS_URL');
+  if (!env.twilioAccountSid || !env.twilioAuthToken || !env.twilioVerifyServiceSid) {
+    throw new Error('Production requires Twilio Verify credentials for phone authentication');
+  }
+  for (const origin of env.corsOrigin.split(',').map(v => v.trim())) {
+    const url = new URL(origin);
+    if (url.protocol !== 'https:' || url.origin !== origin) {
+      throw new Error('Production CORS_ORIGIN must contain exact HTTPS origins');
+    }
+  }
+}
 
 /** Safe summary for logs (never prints password). */
 export function dbPublicInfo(): string {

@@ -99,8 +99,10 @@ class _SearchScreenState extends State<SearchScreen>
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide:
-                    const BorderSide(color: AppColors.primary, width: 1.2),
+                borderSide: const BorderSide(
+                  color: AppColors.primary,
+                  width: 1.2,
+                ),
               ),
             ),
             onChanged: catalog.setSearchQuery,
@@ -124,12 +126,11 @@ class _SearchScreenState extends State<SearchScreen>
                       checkmarkColor: AppColors.veg,
                     ),
                     const SizedBox(width: 8),
-                    ...['relevance', 'rating', 'delivery', 'distance'].map((s) {
+                    ...['relevance', 'rating', 'delivery'].map((s) {
                       final labels = {
                         'relevance': 'Popular',
                         'rating': 'Rating',
                         'delivery': 'Fast delivery',
-                        'distance': 'Nearest',
                       };
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),
@@ -167,18 +168,58 @@ class _SearchScreenState extends State<SearchScreen>
       ),
       body: query.isEmpty
           ? _suggestionsView(context, catalog, pad)
-          : TabBarView(
-              controller: _tabs,
+          : Column(
               children: [
-                _vendorsList(vendors, pad),
-                _productsList(products, pad),
+                if (catalog.searching || catalog.lastSearchMs != null)
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: pad, vertical: 6),
+                    child: Row(
+                      children: [
+                        if (catalog.searching) ...[
+                          const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Searching…',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ] else if (catalog.lastSearchMs != null)
+                          Text(
+                            'Results in ${catalog.lastSearchMs} ms',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabs,
+                    children: [
+                      _vendorsList(vendors, pad),
+                      _productsList(products, pad),
+                    ],
+                  ),
+                ),
               ],
             ),
     );
   }
 
   Widget _suggestionsView(
-      BuildContext context, CatalogProvider catalog, double pad) {
+    BuildContext context,
+    CatalogProvider catalog,
+    double pad,
+  ) {
     return ListView(
       padding: EdgeInsets.all(pad),
       children: [
@@ -214,10 +255,15 @@ class _SearchScreenState extends State<SearchScreen>
               backgroundColor: cat.color,
               child: Icon(cat.icon, color: AppColors.textPrimary, size: 20),
             ),
-            title: Text(cat.name,
-                style: const TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: Text('${cat.vendorCount} sellers • ${cat.description}',
-                maxLines: 1, overflow: TextOverflow.ellipsis),
+            title: Text(
+              cat.name,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(
+              '${cat.vendorCount} sellers • ${cat.description}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
             trailing: const Icon(Icons.chevron_right_rounded),
             onTap: () => context.push('/category/${cat.id}'),
           );
@@ -251,7 +297,13 @@ class _SearchScreenState extends State<SearchScreen>
         subtitle: 'Try searching for biryani, pickle, kurti…',
       );
     }
-    final cols = Responsive.gridColumns(context, mobile: 2, tablet: 3, desktop: 4);
+    final cols = Responsive.gridColumns(
+      context,
+      mobile: 2,
+      tablet: 3,
+      desktop: 4,
+    );
+    final aspect = Responsive.productAspect(context);
     return GridView.builder(
       padding: EdgeInsets.fromLTRB(pad, 12, pad, 100),
       itemCount: products.length,
@@ -259,7 +311,7 @@ class _SearchScreenState extends State<SearchScreen>
         crossAxisCount: cols,
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
-        childAspectRatio: 0.62,
+        childAspectRatio: aspect,
       ),
       itemBuilder: (context, i) => ProductCard(product: products[i]),
     );

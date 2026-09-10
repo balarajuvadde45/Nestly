@@ -19,11 +19,8 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
-  final _couponController = TextEditingController();
-
   @override
   void dispose() {
-    _couponController.dispose();
     super.dispose();
   }
 
@@ -72,8 +69,9 @@ class _CartScreenState extends State<CartScreen> {
                   content: const Text('Remove all items from your cart?'),
                   actions: [
                     TextButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: const Text('Cancel')),
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Cancel'),
+                    ),
                     ElevatedButton(
                       onPressed: () {
                         cart.clear();
@@ -117,13 +115,16 @@ class _CartScreenState extends State<CartScreen> {
                                 Row(
                                   children: [
                                     VegBadge(
-                                        isVeg: item.product.isVeg, size: 13),
+                                      isVeg: item.product.isVeg,
+                                      size: 13,
+                                    ),
                                     const SizedBox(width: 6),
                                     Expanded(
                                       child: Text(
                                         item.product.name,
                                         style: const TextStyle(
-                                            fontWeight: FontWeight.w600),
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -132,20 +133,38 @@ class _CartScreenState extends State<CartScreen> {
                                   Text(
                                     'Size: ${item.selectedSize}',
                                     style: const TextStyle(
-                                        fontSize: 12,
-                                        color: AppColors.textSecondary),
+                                      fontSize: 12,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                if (item.product.unitLabel != null)
+                                  Text(
+                                    item.product.unitLabel!,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                if (item.product.minCartQuantity > 1)
+                                  Text(
+                                    'MOQ ${item.product.minCartQuantity}',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: AppColors.textHint,
+                                    ),
                                   ),
                                 if (item.specialInstructions != null)
                                   Text(
                                     item.specialInstructions!,
                                     style: const TextStyle(
-                                        fontSize: 11,
-                                        color: AppColors.textHint,
-                                        fontStyle: FontStyle.italic),
+                                      fontSize: 11,
+                                      color: AppColors.textHint,
+                                      fontStyle: FontStyle.italic,
+                                    ),
                                   ),
                                 const SizedBox(height: 6),
                                 PriceText(
-                                  price: item.product.price,
+                                  price: item.unitPrice,
                                   mrp: item.product.mrp,
                                   fontSize: 13,
                                 ),
@@ -156,8 +175,7 @@ class _CartScreenState extends State<CartScreen> {
                             children: [
                               Container(
                                 decoration: BoxDecoration(
-                                  border:
-                                      Border.all(color: AppColors.primary),
+                                  border: Border.all(color: AppColors.primary),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Row(
@@ -165,23 +183,26 @@ class _CartScreenState extends State<CartScreen> {
                                     IconButton(
                                       visualDensity: VisualDensity.compact,
                                       iconSize: 18,
-                                      onPressed: () =>
-                                          cart.decrement(item.id),
-                                      icon: const Icon(Icons.remove_rounded,
-                                          color: AppColors.primary),
+                                      onPressed: () => cart.decrement(item.id),
+                                      icon: const Icon(
+                                        Icons.remove_rounded,
+                                        color: AppColors.primary,
+                                      ),
                                     ),
                                     Text(
                                       '${item.quantity}',
                                       style: const TextStyle(
-                                          fontWeight: FontWeight.w700),
+                                        fontWeight: FontWeight.w700,
+                                      ),
                                     ),
                                     IconButton(
                                       visualDensity: VisualDensity.compact,
                                       iconSize: 18,
-                                      onPressed: () =>
-                                          cart.increment(item.id),
-                                      icon: const Icon(Icons.add_rounded,
-                                          color: AppColors.primary),
+                                      onPressed: () => cart.increment(item.id),
+                                      icon: const Icon(
+                                        Icons.add_rounded,
+                                        color: AppColors.primary,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -190,7 +211,9 @@ class _CartScreenState extends State<CartScreen> {
                               Text(
                                 Formatters.currency(item.lineTotal),
                                 style: const TextStyle(
-                                    fontWeight: FontWeight.w700, fontSize: 13),
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                ),
                               ),
                             ],
                           ),
@@ -198,90 +221,6 @@ class _CartScreenState extends State<CartScreen> {
                       ),
                     );
                   }).toList(),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Coupon
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Apply coupon',
-                      style:
-                          TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Try NESTLY20, FLAT50 or FIRST100',
-                      style: TextStyle(
-                          fontSize: 11, color: AppColors.textHint),
-                    ),
-                    const SizedBox(height: 10),
-                    if (cart.couponCode != null)
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.accentLight,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.check_circle_rounded,
-                                color: AppColors.success, size: 20),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                '${cart.couponCode} applied (−${Formatters.currency(cart.couponDiscount)})',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w600),
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: cart.removeCoupon,
-                              child: const Text('Remove'),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _couponController,
-                              textCapitalization: TextCapitalization.characters,
-                              decoration: const InputDecoration(
-                                hintText: 'Enter coupon code',
-                                isDense: true,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          ElevatedButton(
-                            onPressed: () {
-                              final err =
-                                  cart.applyCoupon(_couponController.text);
-                              if (err != null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(err)),
-                                );
-                              } else {
-                                _couponController.clear();
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content: Text('Coupon applied!')),
-                                );
-                              }
-                            },
-                            child: const Text('Apply'),
-                          ),
-                        ],
-                      ),
-                  ],
                 ),
               ),
             ),
@@ -294,9 +233,11 @@ class _CartScreenState extends State<CartScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Bill details',
-                      style:
-                          TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                      'Estimated total',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     _billRow('Item total', cart.itemTotal),
@@ -304,11 +245,14 @@ class _CartScreenState extends State<CartScreen> {
                       'Delivery fee',
                       cart.deliveryFee,
                       trailing: cart.deliveryFee == 0
-                          ? const Text('FREE',
+                          ? const Text(
+                              'FREE',
                               style: TextStyle(
-                                  color: AppColors.freeDelivery,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 13))
+                                color: AppColors.freeDelivery,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              ),
+                            )
                           : null,
                     ),
                     if (cart.deliveryFee > 0 &&
@@ -318,15 +262,19 @@ class _CartScreenState extends State<CartScreen> {
                         child: Text(
                           'Add ${Formatters.currency(AppConstants.freeDeliveryMin - cart.itemTotal)} more for free delivery',
                           style: const TextStyle(
-                              fontSize: 11, color: AppColors.info),
+                            fontSize: 11,
+                            color: AppColors.info,
+                          ),
                         ),
                       ),
                     _billRow('Platform fee', cart.platformFee),
-                    _billRow(
-                        'GST (${AppConstants.gstPercent.toInt()}%)', cart.tax),
+                    _billRow('GST included', cart.tax),
                     if (cart.couponDiscount > 0)
-                      _billRow('Coupon discount', -cart.couponDiscount,
-                          valueColor: AppColors.success),
+                      _billRow(
+                        'Coupon discount',
+                        -cart.couponDiscount,
+                        valueColor: AppColors.success,
+                      ),
                     const Divider(height: 20),
                     _billRow('Grand total', cart.grandTotal, bold: true),
                   ],
@@ -363,8 +311,13 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  Widget _billRow(String label, double amount,
-      {bool bold = false, Color? valueColor, Widget? trailing}) {
+  Widget _billRow(
+    String label,
+    double amount, {
+    bool bold = false,
+    Color? valueColor,
+    Widget? trailing,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(

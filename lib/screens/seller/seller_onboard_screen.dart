@@ -89,8 +89,9 @@ class _SellerOnboardScreenState extends State<SellerOnboardScreen> {
               initialValue: _type,
               decoration: const InputDecoration(labelText: 'Business type'),
               items: _types.entries
-                  .map((e) =>
-                      DropdownMenuItem(value: e.key, child: Text(e.value)))
+                  .map(
+                    (e) => DropdownMenuItem(value: e.key, child: Text(e.value)),
+                  )
                   .toList(),
               onChanged: (v) => setState(() => _type = v ?? _type),
             ),
@@ -114,8 +115,7 @@ class _SellerOnboardScreenState extends State<SellerOnboardScreen> {
                         context.go('/seller');
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text(seller.error ?? 'Failed')),
+                          SnackBar(content: Text(seller.error ?? 'Failed')),
                         );
                       }
                     },
@@ -128,7 +128,9 @@ class _SellerOnboardScreenState extends State<SellerOnboardScreen> {
                       width: 22,
                       height: 22,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : const Text('Create storefront'),
             ),
@@ -148,17 +150,35 @@ class SellerStoreSettingsScreen extends StatefulWidget {
 }
 
 class _SellerStoreSettingsScreenState extends State<SellerStoreSettingsScreen> {
+  final _image = TextEditingController();
   final _offer = TextEditingController();
   final _tagline = TextEditingController();
+  final _businessAddress = TextEditingController();
+  final _pincode = TextEditingController();
+  final _gstin = TextEditingController();
+  final _pan = TextEditingController();
+  final _fssai = TextEditingController();
+  final _minOrder = TextEditingController();
+  bool _gstInvoiceAvailable = false;
+  bool _acceptsWholesale = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final v = context.read<SellerProvider>().vendor;
+      _image.text = v?.imageUrl ?? '';
       if (v != null) {
         _offer.text = v.offerText ?? '';
         _tagline.text = v.tagline;
+        _businessAddress.text = v.businessAddress ?? '';
+        _pincode.text = v.pincode ?? '';
+        _gstin.text = v.gstin ?? '';
+        _pan.text = v.pan ?? '';
+        _fssai.text = v.fssaiLicense ?? '';
+        _minOrder.text = v.minOrder?.toStringAsFixed(0) ?? '';
+        _gstInvoiceAvailable = v.gstInvoiceAvailable;
+        _acceptsWholesale = v.acceptsWholesale;
         setState(() {});
       }
     });
@@ -166,8 +186,15 @@ class _SellerStoreSettingsScreenState extends State<SellerStoreSettingsScreen> {
 
   @override
   void dispose() {
+    _image.dispose();
     _offer.dispose();
     _tagline.dispose();
+    _businessAddress.dispose();
+    _pincode.dispose();
+    _gstin.dispose();
+    _pan.dispose();
+    _fssai.dispose();
+    _minOrder.dispose();
     super.dispose();
   }
 
@@ -184,6 +211,17 @@ class _SellerStoreSettingsScreenState extends State<SellerStoreSettingsScreen> {
           : ListView(
               padding: EdgeInsets.all(pad),
               children: [
+                Text(
+                  v.isApproved ? 'Store approved' : 'Awaiting seller review',
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _image,
+                  decoration: const InputDecoration(
+                    labelText: 'Store image HTTPS URL',
+                  ),
+                ),
+                const SizedBox(height: 12),
                 TextFormField(
                   controller: _tagline,
                   decoration: const InputDecoration(labelText: 'Tagline'),
@@ -197,6 +235,68 @@ class _SellerStoreSettingsScreenState extends State<SellerStoreSettingsScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
+                TextFormField(
+                  controller: _businessAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Business address',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _pincode,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(labelText: 'Pincode'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _fssai,
+                  decoration: const InputDecoration(labelText: 'FSSAI license'),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _gstin,
+                        decoration: const InputDecoration(labelText: 'GSTIN'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _pan,
+                        decoration: const InputDecoration(labelText: 'PAN'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _minOrder,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Minimum order Rs',
+                  ),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('GST invoice available'),
+                  value: _gstInvoiceAvailable,
+                  onChanged: (val) =>
+                      setState(() => _gstInvoiceAvailable = val),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Accept wholesale orders'),
+                  value: _acceptsWholesale,
+                  onChanged: (val) => setState(() => _acceptsWholesale = val),
+                ),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Store open'),
@@ -207,22 +307,41 @@ class _SellerStoreSettingsScreenState extends State<SellerStoreSettingsScreen> {
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Free delivery'),
                   value: v.freeDelivery,
-                  onChanged: (val) =>
-                      seller.updateStore({'freeDelivery': val}),
+                  onChanged: (val) => seller.updateStore({'freeDelivery': val}),
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton(
                   onPressed: () async {
+                    final minOrder = double.tryParse(_minOrder.text.trim());
                     final ok = await seller.updateStore({
+                      'imageUrl': _image.text.trim(),
+                      'coverUrl': _image.text.trim(),
                       'tagline': _tagline.text.trim(),
                       'offerText': _offer.text.trim().isEmpty
                           ? null
                           : _offer.text.trim(),
+                      'businessAddress': _businessAddress.text.trim().isEmpty
+                          ? null
+                          : _businessAddress.text.trim(),
+                      'pincode': _pincode.text.trim().isEmpty
+                          ? null
+                          : _pincode.text.trim(),
+                      'gstin': _gstin.text.trim().isEmpty
+                          ? null
+                          : _gstin.text.trim(),
+                      'pan': _pan.text.trim().isEmpty ? null : _pan.text.trim(),
+                      'fssaiLicense': _fssai.text.trim().isEmpty
+                          ? null
+                          : _fssai.text.trim(),
+                      'minOrder': minOrder,
+                      'gstInvoiceAvailable': _gstInvoiceAvailable,
+                      'acceptsWholesale': _acceptsWholesale,
                     });
                     if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                          content: Text(ok ? 'Saved' : seller.error ?? 'Failed')),
+                        content: Text(ok ? 'Saved' : seller.error ?? 'Failed'),
+                      ),
                     );
                   },
                   child: const Text('Save'),

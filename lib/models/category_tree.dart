@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 /// Top-level marketplace hubs shown in header (web) and home (mobile).
-/// Research-backed for women home businesses: food, pickles/spices,
-/// clothing/boutiques, plus Wisdom Circle for elders.
+/// Marketplace hubs for local businesses:
+/// food, pickles/spices, wholesale, clothing/boutiques.
 class HubCategory {
   final String id;
   final String name;
@@ -12,6 +12,7 @@ class HubCategory {
   final Color color;
   final String imageUrl;
   final List<HubSubCategory> children;
+
   /// If set, navigates to a special experience (e.g. community).
   final String? routeOverride;
 
@@ -56,7 +57,7 @@ class CategoryTree {
       name: 'Food',
       shortLabel: 'Food',
       description:
-          'Home kitchens, tiffin, cloud kitchens & homemade meals from women cooks',
+          'Home kitchens, tiffin, cloud kitchens & homemade meals from local cooks',
       icon: Icons.restaurant_menu_rounded,
       color: Color(0xFFFFE0B2),
       imageUrl:
@@ -72,7 +73,7 @@ class CategoryTree {
         HubSubCategory(
           id: 'sub_cloud',
           name: 'Cloud Kitchen',
-          description: 'Pro kitchens run from home setups',
+          description: 'Pro kitchens run from dedicated premises',
           icon: Icons.storefront_rounded,
           catalogCategoryId: 'cat_cloud',
         ),
@@ -110,8 +111,7 @@ class CategoryTree {
       id: 'hub_pickles',
       name: 'Pickles',
       shortLabel: 'Pickles',
-      description:
-          'Grandma-style pickles, podis, spices & homemade masalas',
+      description: 'Grandma-style pickles, podis, spices & homemade masalas',
       icon: Icons.spa_rounded,
       color: Color(0xFFC8E6C9),
       imageUrl:
@@ -145,7 +145,7 @@ class CategoryTree {
       name: 'Clothes',
       shortLabel: 'Clothes',
       description:
-          'Home boutiques, ethnic wear, handloom & stitched fashion by women entrepreneurs',
+          'Local boutiques, ethnic wear, handloom & stitched fashion from local makers',
       icon: Icons.checkroom_rounded,
       color: Color(0xFFE1BEE7),
       imageUrl:
@@ -154,7 +154,7 @@ class CategoryTree {
         HubSubCategory(
           id: 'sub_boutiques',
           name: 'Boutiques',
-          description: 'Home boutiques & designer ethnic',
+          description: 'Local boutiques & designer ethnic',
           icon: Icons.store_mall_directory_rounded,
           catalogCategoryId: 'cat_clothes',
         ),
@@ -196,40 +196,36 @@ class CategoryTree {
       ],
     ),
     HubCategory(
-      id: 'hub_wisdom',
-      name: 'Wisdom Circle',
-      shortLabel: 'Wisdom',
+      id: 'hub_wholesale',
+      name: 'Wholesale',
+      shortLabel: 'Wholesale',
       description:
-          'Grandparents share life experience, home remedies & health tips. Community answers with care.',
-      icon: Icons.diversity_3_rounded,
-      color: Color(0xFFBBDEFB),
+          'FMCG distributor deals, case packs and GST-ready supplies for local businesses',
+      icon: Icons.local_grocery_store_rounded,
+      color: Color(0xFFD7CCC8),
       imageUrl:
-          'https://images.unsplash.com/photo-1511895426328-dc8714191300?w=400',
-      routeOverride: '/wisdom',
+          'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=400',
       children: [
         HubSubCategory(
-          id: 'wis_health',
-          name: 'Health Tips',
-          description: 'Home care when under the weather',
-          icon: Icons.health_and_safety_outlined,
+          id: 'sub_fmcg',
+          name: 'FMCG',
+          description: 'Daily essentials and kirana cartons',
+          icon: Icons.inventory_2_rounded,
+          catalogCategoryId: 'cat_fmcg',
         ),
         HubSubCategory(
-          id: 'wis_remedies',
-          name: 'Home Remedies',
-          description: 'Traditional remedies from elders',
-          icon: Icons.local_florist_outlined,
+          id: 'sub_grocery_bulk',
+          name: 'Bulk Grocery',
+          description: 'Rice, pulses, oils and pantry packs',
+          icon: Icons.local_grocery_store_rounded,
+          catalogCategoryId: 'cat_fmcg',
         ),
         HubSubCategory(
-          id: 'wis_qa',
-          name: 'Ask & Answer',
-          description: 'Ask a question — community helps',
-          icon: Icons.forum_outlined,
-        ),
-        HubSubCategory(
-          id: 'wis_stories',
-          name: 'Life Stories',
-          description: 'Experiences from grandparents',
-          icon: Icons.auto_stories_outlined,
+          id: 'sub_home_care_bulk',
+          name: 'Home Care',
+          description: 'Cleaning, hygiene and office supplies',
+          icon: Icons.cleaning_services_rounded,
+          catalogCategoryId: 'cat_fmcg',
         ),
       ],
     ),

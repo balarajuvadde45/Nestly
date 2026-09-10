@@ -10,11 +10,7 @@ class VendorCard extends StatelessWidget {
   final Vendor vendor;
   final bool horizontal;
 
-  const VendorCard({
-    super.key,
-    required this.vendor,
-    this.horizontal = false,
-  });
+  const VendorCard({super.key, required this.vendor, this.horizontal = false});
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +54,9 @@ class VendorCard extends StatelessWidget {
                     bottom: 12,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
                       decoration: const BoxDecoration(
                         color: Color(0xFF1A237E),
                         borderRadius: BorderRadius.only(
@@ -127,20 +125,18 @@ class VendorCard extends StatelessWidget {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      const Icon(Icons.schedule_rounded,
-                          size: 13, color: AppColors.textSecondary),
+                      const Icon(
+                        Icons.schedule_rounded,
+                        size: 13,
+                        color: AppColors.textSecondary,
+                      ),
                       const SizedBox(width: 3),
                       Text(
                         Formatters.deliveryTime(vendor.deliveryTimeMins),
                         style: const TextStyle(
-                            fontSize: 11, color: AppColors.textSecondary),
-                      ),
-                      const Text('  •  ',
-                          style: TextStyle(color: AppColors.textHint)),
-                      Text(
-                        Formatters.distance(vendor.distanceKm),
-                        style: const TextStyle(
-                            fontSize: 11, color: AppColors.textSecondary),
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                       if (vendor.freeDelivery) ...[
                         const Spacer(),
@@ -156,21 +152,15 @@ class VendorCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 6),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.secondaryLight,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      vendor.typeLabel,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.secondary,
-                      ),
-                    ),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _chip(vendor.typeLabel),
+                      if (vendor.isVerified) _chip('Verified'),
+                      if (vendor.acceptsWholesale) _chip('Wholesale'),
+                      if (vendor.gstInvoiceAvailable) _chip('GST invoice'),
+                    ],
                   ),
                 ],
               ),
@@ -212,7 +202,9 @@ class VendorCard extends StatelessWidget {
                     bottom: 8,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       color: const Color(0xFF1A237E),
                       child: Text(
                         vendor.offerText!,
@@ -239,7 +231,9 @@ class VendorCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                              fontWeight: FontWeight.w700, fontSize: 14),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
                         ),
                       ),
                       RatingChip(rating: vendor.rating, compact: true),
@@ -247,16 +241,40 @@ class VendorCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${Formatters.deliveryTime(vendor.deliveryTimeMins)} • ${Formatters.distance(vendor.distanceKm)} • ${vendor.area}',
+                    [
+                      Formatters.deliveryTime(vendor.deliveryTimeMins),
+                      vendor.area,
+                      if (vendor.acceptsWholesale) 'Wholesale',
+                    ].join(' / '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                        fontSize: 11, color: AppColors.textSecondary),
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _chip(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.secondaryLight,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: AppColors.secondary,
         ),
       ),
     );

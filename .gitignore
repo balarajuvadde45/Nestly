@@ -43,3 +43,16 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+android/key.properties
+android/keystore/
+backend/.env
+
+# Release secrets and artifacts
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+config/release.json
+.env.production
+.env.production.local
+/artifacts/
