@@ -27,6 +27,16 @@ class AppTheme {
 
     return base.copyWith(
       scaffoldBackgroundColor: AppColors.background,
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: ZoomPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.fuchsia: ZoomPageTransitionsBuilder(),
+          TargetPlatform.linux: FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: ZoomPageTransitionsBuilder(),
+        },
+      ),
       textTheme: textTheme,
       appBarTheme: AppBarTheme(
         elevation: 0,
@@ -43,12 +53,13 @@ class AppTheme {
         ),
       ),
       cardTheme: CardThemeData(
-        elevation: 0,
+        elevation: 2,
+        shadowColor: AppColors.shadow,
         color: AppColors.card,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AppColors.border, width: 0.8),
+          borderRadius: BorderRadius.circular(18),
+          side: const BorderSide(color: AppColors.border, width: 0.6),
         ),
         margin: EdgeInsets.zero,
       ),
@@ -193,6 +204,40 @@ class AppTheme {
       progressIndicatorTheme: const ProgressIndicatorThemeData(
         color: AppColors.primary,
       ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        modalBackgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        showDragHandle: true,
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        titleTextStyle: GoogleFonts.poppins(
+          fontSize: 17,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimary,
+        ),
+      ),
+      listTileTheme: const ListTileThemeData(
+        iconColor: AppColors.textSecondary,
+        contentPadding: EdgeInsets.symmetric(horizontal: 16),
+      ),
+      tabBarTheme: TabBarThemeData(
+        labelColor: AppColors.primary,
+        unselectedLabelColor: AppColors.textSecondary,
+        indicatorColor: AppColors.primary,
+        dividerColor: AppColors.divider,
+        labelStyle: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600),
+        unselectedLabelStyle: GoogleFonts.poppins(fontSize: 14),
+      ),
+      splashFactory: InkSparkle.splashFactory,
     );
   }
 }
