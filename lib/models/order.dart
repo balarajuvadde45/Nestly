@@ -89,6 +89,9 @@ class Order {
   final double discount;
   final double grandTotal;
   final String paymentMethod;
+  final String paymentStatus;
+  final String? paymentUrl;
+  final String? invoiceNumber;
   final String? deliveryPartner;
   final DateTime? estimatedDelivery;
   final String? couponCode;
@@ -113,6 +116,9 @@ class Order {
     this.discount = 0,
     required this.grandTotal,
     required this.paymentMethod,
+    this.paymentStatus = 'PENDING',
+    this.paymentUrl,
+    this.invoiceNumber,
     this.deliveryPartner,
     this.estimatedDelivery,
     this.couponCode,
@@ -170,6 +176,9 @@ class Order {
       discount: discount,
       grandTotal: grandTotal,
       paymentMethod: paymentMethod,
+      paymentStatus: paymentStatus,
+      paymentUrl: paymentUrl,
+      invoiceNumber: invoiceNumber,
       deliveryPartner: deliveryPartner ?? this.deliveryPartner,
       estimatedDelivery: estimatedDelivery,
       couponCode: couponCode,

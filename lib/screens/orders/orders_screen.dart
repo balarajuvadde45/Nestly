@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
@@ -92,6 +93,33 @@ class _OrderCard extends StatelessWidget {
   final bool highlight;
 
   const _OrderCard({required this.order, this.highlight = false});
+
+  Future<void> _payNow(BuildContext context, Order order) async {
+    try {
+      final res = await context
+          .read<ApiClient>()
+          .post('/api/orders/${order.id}/pay');
+      final url = res['paymentUrl'] as String?;
+      if (!context.mounted) return;
+      if (res['paid'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('This order is already paid.')),
+        );
+      } else if (url != null && url.isNotEmpty) {
+        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Payment is not available for this order yet.')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not start payment: $e')),
+        );
+      }
+    }
+  }
 
   Color get _statusColor {
     switch (order.status) {
@@ -204,6 +232,18 @@ class _OrderCard extends StatelessWidget {
                       style: const TextStyle(fontWeight: FontWeight.w800),
                     ),
                     const Spacer(),
+                    if (order.paymentMethod != 'COD' &&
+                        order.paymentStatus == 'PENDING')
+                      FilledButton.icon(
+                        onPressed: () => _payNow(context, order),
+                        style: FilledButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                        ),
+                        icon: const Icon(Icons.payment_rounded, size: 16),
+                        label: const Text('Pay now', style: TextStyle(fontSize: 12)),
+                      ),
+                    const SizedBox(width: 4),
                     Text(
                       Formatters.relativeTime(order.placedAt),
                       style: const TextStyle(

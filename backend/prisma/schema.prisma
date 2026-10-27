@@ -76,6 +76,7 @@ model User {
   orders       Order[]   @relation("CustomerOrders")
   vendor       Vendor?
   favorites    Favorite[]
+  reviews      Review[]
 
   @@index([phone])
   @@index([email])
@@ -139,6 +140,8 @@ model Vendor {
   bankAccountLast4 String?
   bankVerified     Boolean    @default(false)
   fulfillmentModesJson String @default("[\"LOCAL_DELIVERY\"]")
+  serviceablePincodesJson String @default("[]")
+  commissionRate   Float      @default(0) // percent of item total; 0 uses platform default
   serviceRadiusKm  Float      @default(5)
   gstInvoiceAvailable Boolean @default(false)
   acceptsWholesale Boolean    @default(false)
@@ -159,6 +162,8 @@ model Vendor {
   owner    User?     @relation(fields: [ownerId], references: [id])
   products Product[]
   orders   Order[]
+  reviews  Review[]
+  ledger   SellerLedgerEntry[]
 
   @@index([isApproved, city])
   @@index([type, city])
@@ -216,6 +221,7 @@ model Product {
   category ShopCategory? @relation(fields: [categoryId], references: [id])
   items    OrderItem[]
   favorites Favorite[]
+  reviews  Review[]
 
   @@index([isAvailable, name])
   @@index([vendorId, isAvailable])
@@ -247,7 +253,14 @@ model Order {
   addressId         String
   status            OrderStatus   @default(PLACED)
   paymentMethod     PaymentMethod @default(COD)
-  paymentStatus     String        @default("PENDING") // PENDING | PAID | FAILED (Razorpay later)
+  paymentStatus     String        @default("PENDING") // PENDING | PAID | FAILED | CANCELLED | REFUNDED
+  paymentProvider   String?       // razorpay
+  paymentProviderRef String?      // Razorpay payment id after capture
+  paymentLinkId     String?       // Razorpay payment link id
+  paymentUrl        String?
+  paidAt            DateTime?
+  refundAmount      Float?
+  invoiceNumber     String?       @unique
   itemTotal         Float
   deliveryFee       Float
   platformFee       Float
@@ -299,6 +312,7 @@ model OrderItem {
 
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id])
+  review  Review?
 }
 
 model OrderEvent {
@@ -333,6 +347,72 @@ model Coupon {
   minOrder      Float    @default(0)
   isActive      Boolean  @default(true)
   description   String?
+}
+
+/// Verified-purchase product review. One review per delivered order line.
+model Review {
+  id              String   @id @default(uuid())
+  productId       String
+  vendorId        String
+  userId          String
+  orderItemId     String   @unique
+  rating          Int
+  title           String?
+  body            String
+  isHidden        Boolean  @default(false)
+  moderatedBy     String?
+  moderationNote  String?
+  createdAt       DateTime @default(now())
+
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  vendor    Vendor    @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  @@index([productId, isHidden, createdAt])
+  @@index([vendorId, isHidden])
+  @@index([userId, createdAt])
+}
+
+/// Seller settlement ledger. Credits accrue when an order is delivered; payouts are negative entries.
+model SellerLedgerEntry {
+  id        String   @id @default(uuid())
+  vendorId  String
+  orderId   String?
+  type      String   // ORDER_EARNING | PAYOUT | ADJUSTMENT
+  amount    Float    // positive credit, negative debit
+  note      String?
+  createdAt DateTime @default(now())
+
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@index([vendorId, createdAt])
+}
+
+/// Durable notification queue. Delivery worker sends when channel credentials are configured.
+model NotificationOutbox {
+  id          String    @id @default(uuid())
+  userId      String?
+  orderId     String?
+  channel     String    // PUSH | EMAIL
+  template    String
+  payloadJson String    @default("{}")
+  status      String    @default("PENDING") // PENDING | SENT | FAILED
+  attempts    Int       @default(0)
+  sentAt      DateTime?
+  failedAt    DateTime?
+  lastError   String?
+  createdAt   DateTime  @default(now())
+
+  @@index([status, createdAt])
+  @@index([sentAt])
+  @@index([userId, createdAt])
+}
+
+/// Named counters for human-friendly sequence numbers (invoices).
+model Counter {
+  id    String @id
+  value Int    @default(0)
 }
 
 /// Seller applications reviewed by platform admin.

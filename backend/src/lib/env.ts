@@ -79,10 +79,19 @@ export const env = {
   twilioAccountSid: optional('TWILIO_ACCOUNT_SID', ''),
   twilioAuthToken: optional('TWILIO_AUTH_TOKEN', ''),
   twilioVerifyServiceSid: optional('TWILIO_VERIFY_SERVICE_SID', ''),
+  razorpayKeyId: optional('RAZORPAY_KEY_ID', ''),
+  razorpayKeySecret: optional('RAZORPAY_KEY_SECRET', ''),
+  razorpayWebhookSecret: optional('RAZORPAY_WEBHOOK_SECRET', ''),
+  mediaBaseUrl: optional('MEDIA_BASE_URL', ''),
+  uploadDir: optional('UPLOAD_DIR', ''),
+  platformCommissionRate: Number(optional('PLATFORM_COMMISSION_RATE', '10')),
   defaultCity: optional('DEFAULT_CITY', 'Hyderabad'),
   isDev: optional('NODE_ENV', 'development') !== 'production',
 };
 
+if (!(env.platformCommissionRate >= 0 && env.platformCommissionRate <= 50)) {
+  throw new Error('PLATFORM_COMMISSION_RATE must be between 0 and 50');
+}
 if (!Number.isInteger(env.port) || env.port < 1 || env.port > 65535 ||
     !Number.isInteger(env.trustProxyHops) || env.trustProxyHops < 0) {
   throw new Error('Invalid PORT or TRUST_PROXY_HOPS');

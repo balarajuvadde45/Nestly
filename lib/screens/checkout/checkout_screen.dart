@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
@@ -22,6 +23,7 @@ class CheckoutScreen extends StatefulWidget {
 class _CheckoutScreenState extends State<CheckoutScreen> {
   Address? _selectedAddress;
   bool _placing = false;
+  String _paymentMethod = 'COD';
 
   @override
   Widget build(BuildContext context) {
@@ -192,40 +194,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
             ),
             const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.primary, width: 1.5),
+            ...[
+              _paymentOption(
+                context,
+                value: 'COD',
+                icon: Icons.payments_outlined,
+                title: 'Cash on Delivery',
+                subtitle: 'Pay in cash when your order arrives.',
               ),
-              child: const Row(
-                children: [
-                  Icon(Icons.payments_outlined, color: AppColors.primary),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Cash on Delivery',
-                          style: TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                        SizedBox(height: 2),
-                        Text(
-                          'Pay in cash when your order arrives.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(Icons.check_circle_rounded, color: AppColors.primary),
-                ],
+              const SizedBox(height: 10),
+              _paymentOption(
+                context,
+                value: 'UPI',
+                icon: Icons.credit_card_rounded,
+                title: 'Pay Online',
+                subtitle: 'UPI, cards or wallets via a secure payment link.',
               ),
-            ),
+            ],
             const SizedBox(height: 20),
             Card(
               child: Padding(
@@ -342,6 +327,57 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
+  Widget _paymentOption(
+    BuildContext context, {
+    required String value,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    final selected = _paymentMethod == value;
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => setState(() => _paymentMethod = value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? AppColors.primary : Colors.grey.shade300,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: AppColors.primary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              selected ? Icons.check_circle_rounded : Icons.radio_button_off_rounded,
+              color: selected ? AppColors.primary : Colors.grey,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _placeOrder(BuildContext context) async {
     final cart = context.read<CartProvider>();
     final auth = context.read<AuthProvider>();
@@ -386,7 +422,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         body: {
           'vendorId': vendor.id,
           'addressId': address.id,
-          'paymentMethod': 'COD',
+          'paymentMethod': _paymentMethod,
           'items': cart.items
               .map(
                 (i) => {
@@ -427,7 +463,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 _row('Platform fee', (quote['platformFee'] as num).toDouble()),
                 _row('GST included', (quote['tax'] as num).toDouble()),
                 _row(
-                  'Cash on delivery',
+                  _paymentMethod == 'COD' ? 'Cash on delivery' : 'Pay online',
                   (quote['grandTotal'] as num).toDouble(),
                   bold: true,
                 ),
@@ -458,12 +494,30 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         tax: cart.tax,
         discount: cart.couponDiscount,
         grandTotal: cart.grandTotal,
-        paymentMethod: 'COD',
+        paymentMethod: _paymentMethod,
         couponCode: cart.couponCode,
       );
 
       cart.clear();
       if (!context.mounted) return;
+      if (_paymentMethod != 'COD') {
+        context.go('/order-success/${order.id}');
+        if (order.paymentUrl != null && order.paymentUrl!.isNotEmpty) {
+          await launchUrl(
+            Uri.parse(order.paymentUrl!),
+            mode: LaunchMode.externalApplication,
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Order placed. Open it in Orders to complete the payment.',
+              ),
+            ),
+          );
+        }
+        return;
+      }
       context.go('/order-success/${order.id}');
     } catch (e) {
       if (context.mounted) {
