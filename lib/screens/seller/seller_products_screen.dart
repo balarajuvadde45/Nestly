@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
@@ -8,6 +11,7 @@ import '../../models/product.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/catalog_provider.dart';
 import '../../providers/seller_provider.dart';
+import '../../services/api_client.dart';
 import '../../services/api_mappers.dart';
 import '../../widgets/app_network_image.dart';
 import '../../widgets/veg_badge.dart';
@@ -213,6 +217,7 @@ class _SellerProductFormScreenState extends State<SellerProductFormScreen> {
 
   bool _isVeg = true;
   bool _isReturnable = false;
+  bool _uploading = false;
   bool _madeToOrder = false;
   bool _saving = false;
   String _type = 'FOOD';
@@ -250,6 +255,46 @@ class _SellerProductFormScreenState extends State<SellerProductFormScreen> {
         _fillFromProduct(p);
         setState(() {});
       });
+    }
+  }
+
+  Future<void> _pickAndUploadImage() async {
+    try {
+      final picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1600,
+        imageQuality: 82,
+      );
+      if (picked == null) return;
+      setState(() => _uploading = true);
+      final bytes = await picked.readAsBytes();
+      final res = await context.read<ApiClient>().post(
+            '/api/media/upload',
+            body: {
+              'filename': picked.name,
+              'dataBase64': base64Encode(bytes),
+            },
+          );
+      if (!mounted) return;
+      final url = res['url'] as String?;
+      if (url != null && url.isNotEmpty) {
+        setState(() {
+          _image.text = url;
+          _uploading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Photo uploaded')),
+        );
+      } else {
+        setState(() => _uploading = false);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _uploading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Upload failed: $e')),
+        );
+      }
     }
   }
 
@@ -398,6 +443,18 @@ class _SellerProductFormScreenState extends State<SellerProductFormScreen> {
               validator: (v) => v == null || !v.startsWith('http')
                   ? 'Valid URL required'
                   : null,
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _uploading ? null : _pickAndUploadImage,
+              icon: _uploading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.photo_camera_outlined, size: 18),
+              label: const Text('Upload photo'),
             ),
             const SizedBox(height: 18),
             _section('Inventory'),

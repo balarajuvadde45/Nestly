@@ -5,6 +5,7 @@ import { logger } from './lib/logger';
 import { createApp } from './app';
 import { redis } from './lib/redis';
 import { initSocket, closeSocket } from './socket';
+import { NotificationWorker } from './lib/notification-worker';
 
 async function main(): Promise<void> {
   // Fail fast if the DB is unreachable.
@@ -24,6 +25,10 @@ async function main(): Promise<void> {
   const server = http.createServer(app);
   await initSocket(server);
 
+  // Drain the durable notification queue in-process.
+  const notifications = new NotificationWorker();
+  notifications.start();
+
   server.listen(env.port, () => {
     logger.info({ port: env.port }, 'Nestly API ready');
   });
@@ -31,6 +36,7 @@ async function main(): Promise<void> {
   // Graceful shutdown: stop accepting connections, drain, disconnect DB.
   const shutdown = (signal: string): void => {
     logger.info(`${signal} received — shutting down gracefully`);
+    notifications.stop();
     void closeSocket();
     server.close(() => {
       void Promise.all([prisma.$disconnect(), redis?.isOpen ? redis.quit() : Promise.resolve()]).finally(() => {

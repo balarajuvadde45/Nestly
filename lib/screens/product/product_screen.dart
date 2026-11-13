@@ -174,6 +174,7 @@ class _ProductScreenState extends State<ProductScreen> {
                       .toList(),
                 ),
               ],
+              _ReviewsSection(productId: product.id),
               if (product.wholesaleTiers.isNotEmpty) ...[
                 const SizedBox(height: 20),
                 const Text(
@@ -592,6 +593,216 @@ class _ProductScreenState extends State<ProductScreen> {
           onPressed: () => context.push('/cart'),
         ),
       ),
+    );
+  }
+}
+
+class _ReviewsSection extends StatefulWidget {
+  final String productId;
+  const _ReviewsSection({required this.productId});
+
+  @override
+  State<_ReviewsSection> createState() => _ReviewsSectionState();
+}
+
+class _ReviewsSectionState extends State<_ReviewsSection> {
+  List<Map<String, dynamic>> _reviews = [];
+  num _average = 0;
+  int _count = 0;
+  List<String> _canReview = const [];
+  bool _loading = true;
+  bool _more = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final res = await context.read<ApiClient>().get(
+            '/api/reviews/product/${widget.productId}',
+          );
+      if (!mounted) return;
+      setState(() {
+        _reviews = (res['reviews'] as List)
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
+        final summary = Map<String, dynamic>.from(res['summary'] as Map);
+        _average = summary['average'] as num? ?? 0;
+        _count = summary['count'] as int? ?? 0;
+        _more = summary['hasMore'] as bool? ?? false;
+        _canReview = (res['canReview'] as List? ?? []).cast<String>();
+        _loading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _writeReview(String orderItemId) async {
+    int rating = 5;
+    final bodyCtrl = TextEditingController();
+    final titleCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Write a review'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    for (var i = 1; i <= 5; i++)
+                      IconButton(
+                        onPressed: () => setDialogState(() => rating = i),
+                        icon: Icon(
+                          i <= rating ? Icons.star_rounded : Icons.star_border_rounded,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                  ],
+                ),
+                TextField(
+                  controller: titleCtrl,
+                  decoration: const InputDecoration(hintText: 'Title (optional)'),
+                  maxLength: 100,
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: bodyCtrl,
+                  decoration: const InputDecoration(
+                    hintText: 'How was the quality, packaging, delivery?',
+                  ),
+                  maxLines: 3,
+                  maxLength: 2000,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: bodyCtrl.text.trim().isEmpty
+                  ? null
+                  : () => Navigator.pop(ctx, true),
+              child: const Text('Post'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await context.read<ApiClient>().post(
+            '/api/reviews/product/${widget.productId}',
+            body: {
+              'orderItemId': orderItemId,
+              'rating': rating,
+              'title': titleCtrl.text.trim(),
+              'body': bodyCtrl.text.trim(),
+            },
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Review posted. Thank you!')),
+        );
+        _load();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not post review: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 20),
+        const Text('Reviews', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+        const SizedBox(height: 8),
+        if (_count == 0)
+          Text(
+            'No reviews yet. Buy this item and be the first to review it.',
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+          )
+        else ...[
+          Row(
+            children: [
+              Icon(Icons.star_rounded, color: AppColors.primary, size: 20),
+              const SizedBox(width: 4),
+              Text(
+                '${_average.toStringAsFixed(1)} \u00b7 $_count review${_count == 1 ? '' : 's'}',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          for (final r in _reviews)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      for (var i = 0; i < 5; i++)
+                        Icon(
+                          i < (r['rating'] as num) ? Icons.star_rounded : Icons.star_border_rounded,
+                          size: 14,
+                          color: AppColors.primary,
+                        ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          (r['title'] as String?) ?? '',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    (r['body'] as String?) ?? '',
+                    style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.4),
+                  ),
+                  Text(
+                    (r['userName'] as String?) ?? '',
+                    style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+          if (_more)
+            const Text('More reviews in the full list.', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+        ],
+        if (_canReview.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: OutlinedButton.icon(
+              onPressed: () => _writeReview(_canReview.first),
+              icon: const Icon(Icons.edit_note_rounded, size: 18),
+              label: const Text('Write a review'),
+            ),
+          ),
+      ],
     );
   }
 }

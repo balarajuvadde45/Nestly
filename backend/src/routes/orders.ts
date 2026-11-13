@@ -9,12 +9,17 @@ import { getIo } from '../socket';
 import { parseWholesaleTiers, priceForQuantity, safeJsonArray } from '../lib/marketplace';
 import { orderInclude, transitionOrder } from '../lib/order-lifecycle';
 import { fromPaise, toPaise, totals } from '../lib/pricing';
+import { createPaymentLink, onlinePaymentsConfigured } from '../lib/payments';
+import { expireStaleOnlineOrders } from '../lib/order-lifecycle';
+import { env } from '../lib/env';
+
 
 export const ordersRouter = Router();
+const isTest = process.env.NODE_ENV === 'test';
 ordersRouter.use(requireAuth);
 const placeSchema = z.object({
   vendorId: z.string().min(1).max(100), addressId: z.string().min(1).max(100),
-  paymentMethod: z.literal('COD').default('COD'),
+  paymentMethod: z.enum(['COD', 'UPI', 'CARD', 'WALLET']).default('COD'),
   notes: z.string().max(500).optional(),
   fulfillmentMode: z.literal('LOCAL_DELIVERY').default('LOCAL_DELIVERY'),
   items: z.array(z.object({
@@ -24,6 +29,8 @@ const placeSchema = z.object({
 }).strict();
 type Input = z.infer<typeof placeSchema>;
 const hash = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+const escapeHtml = (value: string): string =>
+  value.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] ?? c));
 const fail = (message: string, status = 400): never => { throw Object.assign(new Error(message), { status }); };
 
 async function quote(tx: Prisma.TransactionClient, customerId: string, body: Input) {
@@ -35,7 +42,9 @@ async function quote(tx: Prisma.TransactionClient, customerId: string, body: Inp
   const address = await tx.address.findFirst({ where: { id: body.addressId, userId: customerId } });
   if (!address) return fail('Choose a valid delivery address');
   if (address.city.trim().toLowerCase() !== vendor.city.trim().toLowerCase()) fail('This seller does not deliver to the selected city');
-  if (!vendor.pincode || address.pincode !== vendor.pincode) fail('This seller delivers within their listed pincode');
+  const serviceable = safeJsonArray(vendor.serviceablePincodesJson).map(String);
+  const pinOk = serviceable.length > 0 ? serviceable.includes(address.pincode) : Boolean(vendor.pincode && address.pincode === vendor.pincode);
+  if (!pinOk) fail('This seller does not deliver to the selected pincode');
   const ids = [...new Set(body.items.map(i => i.productId))];
   const products = await tx.product.findMany({ where: { id: { in: ids }, vendorId: vendor.id } });
   if (products.length !== ids.length) fail('One or more items are unavailable');
@@ -111,7 +120,7 @@ ordersRouter.post('/', async (req: AuthedRequest, res, next) => {
           data: {
             customerId, vendorId: result.vendor.id, addressId: result.address.id,
             addressSnapshotJson: JSON.stringify(result.addressSnapshot),
-            idempotencyKey, requestHash, paymentMethod: 'COD', paymentStatus: 'PENDING',
+            idempotencyKey, requestHash, paymentMethod: body.paymentMethod, paymentStatus: 'PENDING',
             ...result.amounts, fulfillmentMode: body.fulfillmentMode, sellerGstin: result.vendor.gstin,
             notes: body.notes,
             estimatedDelivery: new Date(Date.now() + result.vendor.deliveryTimeMins * 60000 + Math.max(0, ...result.products.map(p => p.dispatchTimeDays ?? 0)) * 86400000),
@@ -129,6 +138,31 @@ ordersRouter.post('/', async (req: AuthedRequest, res, next) => {
       }
       throw e;
     }
+    if (body.paymentMethod !== 'COD') {
+      if (!onlinePaymentsConfigured()) {
+        await transitionOrder({ id: order.id }, 'CANCELLED', 'Cancelled: online payments are not configured');
+        fail('Online payments are not configured yet. Please choose cash on delivery.', 503);
+      }
+      try {
+        const customer = await prisma.user.findUnique({ where: { id: customerId }, select: { name: true, phone: true, email: true } });
+        const link = await createPaymentLink({
+          orderId: order.id,
+          amountPaise: Math.round((order.grandTotal) * 100),
+          customerName: customer?.name ?? 'Nestly customer',
+          customerPhone: customer?.phone ?? '',
+          customerEmail: customer?.email ?? '',
+          description: `Nestly order ${order.id.slice(0, 8)}`,
+        });
+        order = await prisma.order.update({
+          where: { id: order.id },
+          data: { paymentLinkId: link.linkId, paymentUrl: link.shortUrl, paymentProvider: 'razorpay' },
+          include: orderInclude,
+        });
+      } catch (e) {
+        await transitionOrder({ id: order.id }, 'CANCELLED', 'Cancelled: payment link could not be created');
+        throw e;
+      }
+    }
     const payload = serializeOrder(order);
     getIo()?.to('user:' + customerId).emit('order:updated', payload);
     if (order.vendor.ownerId) getIo()?.to('user:' + order.vendor.ownerId).emit('order:new', payload);
@@ -138,6 +172,7 @@ ordersRouter.post('/', async (req: AuthedRequest, res, next) => {
 
 ordersRouter.get('/', async (req: AuthedRequest, res, next) => {
   try {
+    if (!isTest) await expireStaleOnlineOrders();
     const page = z.coerce.number().int().min(1).max(10000).default(1).parse(req.query.page);
     const orders = await prisma.order.findMany({
       where: { customerId: req.user!.sub }, include: orderInclude,
@@ -158,7 +193,105 @@ ordersRouter.get('/:id', async (req: AuthedRequest, res, next) => {
     res.json({ order: serializeOrder(order) });
   } catch (e) { next(e); }
 });
-ordersRouter.post('/:id/cancel', async (req: AuthedRequest, res, next) => {
+/**
+ * Create (or reuse) the Razorpay payment link for an unpaid online order.
+ *COD orders and already-paid orders are refused with a clear message.
+ */
+ordersRouter.post('/:id/pay', async (req: AuthedRequest, res, next) => {
+  try {
+    const order = await prisma.order.findFirst({
+      where: { id: String(req.params.id), customerId: req.user!.sub }, include: orderInclude,
+    });
+    if (!order) { res.status(404).json({ error: 'Order not found' }); return; }
+    if (order.paymentMethod === 'COD') { res.status(400).json({ error: 'Cash on delivery orders do not use online payment' }); return; }
+    if (order.paymentStatus === 'PAID') { res.json({ paid: true, order: serializeOrder(order) }); return; }
+    if (order.status !== 'PLACED' || order.paymentStatus === 'CANCELLED') {
+      res.status(409).json({ error: 'Order changed. Refresh and try again.' }); return;
+    }
+    if (order.paymentLinkId && order.paymentUrl) {
+      res.json({ paid: false, paymentUrl: order.paymentUrl, order: serializeOrder(order) }); return;
+    }
+    if (!onlinePaymentsConfigured()) {
+      res.status(503).json({ error: 'Online payments are not configured yet. Please choose cash on delivery.' }); return;
+    }
+    const customer = await prisma.user.findUnique({ where: { id: req.user!.sub }, select: { name: true, phone: true, email: true } });
+    const link = await createPaymentLink({
+      orderId: order.id,
+      amountPaise: Math.round(order.grandTotal * 100),
+      customerName: customer?.name ?? 'Nestly customer',
+      customerPhone: customer?.phone ?? '',
+      customerEmail: customer?.email ?? '',
+      description: `Nestly order ${order.id.slice(0, 8)}`,
+    });
+    const updated = await prisma.order.update({
+      where: { id: order.id },
+      data: { paymentLinkId: link.linkId, paymentUrl: link.shortUrl, paymentProvider: 'razorpay', paymentStatus: 'PENDING' },
+      include: orderInclude,
+    });
+    res.json({ paid: false, paymentUrl: link.shortUrl, order: serializeOrder(updated) });
+  } catch (e) { next(e); }
+});
+
+/** Printable GST-style invoice for a delivered order. */
+ordersRouter.get('/:id/invoice', async (req: AuthedRequest, res, next) => {
+  try {
+    const order = await prisma.order.findFirst({
+      where: { id: String(req.params.id), ...(req.user!.role === 'ADMIN' ? {} : {
+        OR: [{ customerId: req.user!.sub }, { vendor: { ownerId: req.user!.sub } }],
+      }) }, include: orderInclude,
+    });
+    if (!order) { res.status(404).json({ error: 'Order not found' }); return; }
+    if (order.status !== 'DELIVERED') { res.status(409).json({ error: 'Invoices are issued after delivery' }); return; }
+    let invoiceNumber = order.invoiceNumber;
+    if (!invoiceNumber) {
+      invoiceNumber = await prisma.$transaction(async tx => {
+        const counter = await tx.counter.upsert({
+          where: { id: 'invoice' }, create: { id: 'invoice', value: 1 }, update: { value: { increment: 1 } },
+        });
+        const value = `NL-${new Date().getFullYear()}-${String(counter.value).padStart(6, '0')}`;
+        await tx.order.update({ where: { id: order.id }, data: { invoiceNumber: value } });
+        return value;
+      });
+    }
+    const buyer = order.addressSnapshotJson ? JSON.parse(order.addressSnapshotJson) as Record<string, string> : {};
+    const rows = order.items.map(i => `
+        <tr>
+          <td>${escapeHtml(i.productName)}${i.selectedSize ? ` (${escapeHtml(i.selectedSize)})` : ''}</td>
+          <td style="text-align:center">${i.quantity}</td>
+          <td style="text-align:right">&#8377;${i.unitPrice.toFixed(2)}</td>
+          <td style="text-align:right">${i.gstRate ?? 0}%</td>
+          <td style="text-align:right">&#8377;${(i.lineTax ?? 0).toFixed(2)}</td>
+          <td style="text-align:right">&#8377;${(i.unitPrice * i.quantity).toFixed(2)}</td>
+        </tr>`).join('');
+    const html = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Invoice ${escapeHtml(invoiceNumber)}</title></head>
+<body style="font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:24px auto;color:#1a1a1a">
+  <h1 style="font-size:20px;margin:0">Nestly tax invoice</h1>
+  <p style="color:#555;margin:4px 0 16px">${escapeHtml(invoiceNumber)} &middot; ${order.placedAt.toISOString().slice(0, 10)}</p>
+  <p style="margin:4px 0"><strong>Sold by:</strong> ${escapeHtml(order.vendor.name)}${order.vendor.gstin ? ` &middot; GSTIN ${escapeHtml(order.vendor.gstin)}` : ' &middot; GSTIN not provided'}</p>
+  <p style="margin:4px 0"><strong>Billed to:</strong> ${escapeHtml(buyer.label ?? 'Customer')}, ${escapeHtml(buyer.fullAddress ?? '')}, ${escapeHtml(buyer.city ?? '')} ${escapeHtml(buyer.pincode ?? '')}</p>
+  <table style="width:100%;border-collapse:collapse;margin-top:16px;font-size:14px">
+    <thead><tr style="border-bottom:2px solid #333">
+      <th style="text-align:left;padding:6px">Item</th><th style="text-align:center;padding:6px">Qty</th>
+      <th style="text-align:right;padding:6px">Unit (incl. GST)</th><th style="text-align:right;padding:6px">GST</th>
+      <th style="text-align:right;padding:6px">Tax</th><th style="text-align:right;padding:6px">Total</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <table style="width:100%;margin-top:16px;font-size:14px">
+    <tr><td style="padding:2px 0">Item total</td><td style="text-align:right">&#8377;${order.itemTotal.toFixed(2)}</td></tr>
+    <tr><td style="padding:2px 0">Delivery</td><td style="text-align:right">&#8377;${order.deliveryFee.toFixed(2)}</td></tr>
+    <tr><td style="padding:2px 0">Platform fee</td><td style="text-align:right">&#8377;${order.platformFee.toFixed(2)}</td></tr>
+    <tr><td style="padding:6px 0;border-top:2px solid #333"><strong>Paid (${order.paymentMethod === 'COD' ? 'cash on delivery' : escapeHtml(order.paymentMethod)})</strong></td>
+        <td style="text-align:right;border-top:2px solid #333"><strong>&#8377;${order.grandTotal.toFixed(2)}</strong></td></tr>
+  </table>
+  <p style="color:#666;font-size:12px;margin-top:24px">Prices are GST-inclusive. This invoice was generated from the delivered order record.</p>
+</body></html>`;
+    res.type('html').send(html);
+  } catch (e) { next(e); }
+});
+
+ordersRouter.post('/:id/cancel' , async (req: AuthedRequest, res, next) => {
   try {
     const order = await transitionOrder(
       { id: String(req.params.id), customerId: req.user!.sub }, 'CANCELLED', 'Cancelled by customer', true,

@@ -532,3 +532,32 @@ sellerRouter.patch('/store', async (req: AuthedRequest, res, next) => {
     next(e);
   }
 });
+
+/** Settlement ledger: what this seller has earned, commissions kept, and payouts made. */
+sellerRouter.get('/earnings', async (req: AuthedRequest, res, next) => {
+  try {
+    const vendor = await prisma.vendor.findUnique({ where: { ownerId: req.user!.sub } });
+    if (!vendor) { res.status(404).json({ error: 'No business on file' }); return; }
+    const [agg, entries] = await Promise.all([
+      prisma.sellerLedgerEntry.aggregate({
+        where: { vendorId: vendor.id }, _sum: { amount: true }, _count: { amount: true },
+      }),
+      prisma.sellerLedgerEntry.findMany({
+        where: { vendorId: vendor.id },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 50,
+      }),
+    ]);
+    const total = agg._sum.amount ?? 0;
+    res.json({
+      currency: 'INR',
+      totalEarnings: Math.round(total * 100) / 100,
+      entryCount: agg._count.amount,
+      commissionRate: vendor.commissionRate > 0 ? vendor.commissionRate : 10,
+      entries: entries.map(e => ({
+        id: e.id, type: e.type, amount: e.amount, note: e.note,
+        orderId: e.orderId, createdAt: e.createdAt.toISOString(),
+      })),
+      hasMore: entries.length === 50,
+    });
+  } catch (e) { next(e); }
+});

@@ -71,7 +71,7 @@ class OrderProvider extends ChangeNotifier {
     final body = <String, dynamic>{
       'vendorId': vendor.id,
       'addressId': address.id,
-      'paymentMethod': 'COD',
+      'paymentMethod': paymentMethod,
       'quoteHash': quoteHash,
       'items': items
           .map(

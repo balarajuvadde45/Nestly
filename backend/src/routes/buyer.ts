@@ -293,3 +293,26 @@ buyerRouter.post('/log', async (req: AuthedRequest, res, next) => {
     next(e);
   }
 });
+
+/** The signed-in buyer's notifications, newest first (in-app inbox). */
+buyerRouter.get('/notifications', async (req: AuthedRequest, res, next) => {
+  try {
+    const page = z.coerce.number().int().min(1).max(10000).default(1).parse(req.query.page);
+    const where = { userId: req.user!.sub };
+    const [count, rows] = await Promise.all([
+      prisma.notificationOutbox.count({ where }),
+      prisma.notificationOutbox.findMany({
+        where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: 30, skip: (page - 1) * 30,
+      }),
+    ]);
+    res.json({
+      notifications: rows.map(n => ({
+        id: n.id, template: n.template,
+        message: n.payloadJson ? (JSON.parse(n.payloadJson) as { message?: string }).message ?? null : null,
+        orderId: n.orderId, status: n.status, createdAt: n.createdAt.toISOString(),
+      })),
+      page, hasMore: rows.length === 30, total: count,
+    });
+  } catch (e) { next(e); }
+});

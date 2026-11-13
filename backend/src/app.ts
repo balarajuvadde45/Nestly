@@ -19,6 +19,9 @@ import { redis, rateLimitStore } from './lib/redis';
 import { applicationsRouter } from './routes/applications';
 import { favoritesRouter } from './routes/favorites';
 import { buyerRouter } from './routes/buyer';
+import { reviewsRouter } from './routes/reviews';
+import { paymentsRouter } from './routes/payments';
+import { mediaRouter, uploadDir } from './routes/media';
 
 const isTest = process.env.NODE_ENV === 'test';
 
@@ -47,6 +50,7 @@ export function createApp(): Express {
     }),
   );
   app.use(compression());
+  app.use('/payments', paymentsRouter); // raw body, mounted before the JSON parser for webhook signatures
   app.use(express.json({ limit: '2mb' }));
   app.use(pinoHttp({ logger }));
 
@@ -115,6 +119,9 @@ export function createApp(): Express {
   app.use('/api/buyer', buyerRouter);
   app.use('/api/favorites', favoritesRouter);
   app.use('/api/addresses', addressesRouter);
+  app.use('/api/reviews', reviewsRouter);
+  app.use('/api/media', mediaRouter);
+  app.use('/media', express.static(uploadDir()));
 
   // Seller dashboard API (separate surface)
   app.use('/api/seller', sellerRouter);
