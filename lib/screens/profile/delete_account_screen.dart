@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/order_provider.dart';
-import '../../providers/seller_provider.dart';
 
 class DeleteAccountScreen extends StatefulWidget {
   const DeleteAccountScreen({super.key});
@@ -39,7 +38,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
             children: [
               if (!auth.isLoggedIn) ...[
                 const Text(
-                  'Sign in to verify ownership and delete your Nestly account.',
+                  'Sign in to verify ownership and delete your Tamarin account.',
                 ),
                 TextButton(
                   onPressed: () => context.go('/login?next=/account/delete'),
@@ -128,9 +127,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
                           if (!context.mounted) return;
                           if (ok) {
                             context.read<CartProvider>().clear();
-                            context.read<OrderProvider>().clear();
-                            context.read<SellerProvider>().clear();
-                            context.go('/home');
+                            context.read<OrderProvider>().clear();                            context.go('/home');
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text('Account deleted')),
                             );

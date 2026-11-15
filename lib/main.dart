@@ -5,9 +5,9 @@ import 'core/constants/app_constants.dart';
 import 'core/theme/app_theme.dart';
 import 'providers/auth_provider.dart';
 import 'providers/cart_provider.dart';
+import 'providers/location_provider.dart';
 import 'providers/catalog_provider.dart';
 import 'providers/order_provider.dart';
-import 'providers/seller_provider.dart';
 import 'core/config/app_config.dart';
 import 'router/app_router.dart';
 import 'services/api_client.dart';
@@ -22,17 +22,17 @@ void main() {
       statusBarIconBrightness: Brightness.dark,
     ),
   );
-  runApp(const NestlyApp());
+  runApp(const TamarinApp());
 }
 
-class NestlyApp extends StatefulWidget {
-  const NestlyApp({super.key});
+class TamarinApp extends StatefulWidget {
+  const TamarinApp({super.key});
 
   @override
-  State<NestlyApp> createState() => _NestlyAppState();
+  State<TamarinApp> createState() => _TamarinAppState();
 }
 
-class _NestlyAppState extends State<NestlyApp> {
+class _TamarinAppState extends State<TamarinApp> {
   late final ApiClient _api = ApiClient();
   late final SocketService _socket = SocketService();
   late final _router = createAppRouter();
@@ -55,11 +55,11 @@ class _NestlyAppState extends State<NestlyApp> {
           create: (_) => CatalogProvider(_api)..loadHome(),
         ),
         ChangeNotifierProvider(create: (_) => CartProvider()..restore()),
+        ChangeNotifierProvider(create: (_) => LocationProvider()..load()),
         ChangeNotifierProvider(
           create: (_) => AuthProvider(_api, _socket)..init(),
         ),
         ChangeNotifierProvider(create: (_) => OrderProvider(_api, _socket)),
-        ChangeNotifierProvider(create: (_) => SellerProvider(_api, _socket)),
       ],
       child: MaterialApp.router(
         title: AppConstants.appName,

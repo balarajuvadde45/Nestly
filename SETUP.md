@@ -56,6 +56,6 @@ npm run build
 npm audit
 ```
 
-Database integration tests require `TEST_DATABASE_URL` pointing to an isolated database named exactly `nestly_test`. Apply migrations there first. Without that variable the integration suite is skipped; a green unit run alone does not validate checkout transactions.
+Database integration tests require `TEST_DATABASE_URL` pointing to an isolated database named exactly `tamarin_test`. Apply migrations there first. Without that variable the integration suite is skipped; a green unit run alone does not validate checkout transactions.
 
 Never use `db:reset`, `migrate reset`, or `db push` on production. See [Deployment](DEPLOY.md) for signed releases and migration procedures.

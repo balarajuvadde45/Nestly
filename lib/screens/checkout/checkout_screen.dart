@@ -237,7 +237,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 const Text(
-                  'By placing this order you agree to Nestly ',
+                  'By placing this order you agree to Tamarin ',
                   style: TextStyle(fontSize: 11, color: AppColors.textHint),
                 ),
                 GestureDetector(

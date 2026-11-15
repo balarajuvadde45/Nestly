@@ -2,6 +2,7 @@ import { OrderStatus, Prisma } from '@prisma/client';
 import { env } from './env';
 import { prisma } from './prisma';
 import { queueNotification, type NotificationTemplate } from './notify';
+import { fetchLink, refundPayment } from './payments';
 
 export const orderInclude = {
   items: true, events: { orderBy: { createdAt: 'asc' as const } }, vendor: true, address: true,
@@ -40,6 +41,11 @@ export async function transitionOrder(
     if (!canTransition(order.status, status) || (customer && order.status !== 'PLACED')) {
       throw Object.assign(new Error('Order status has changed or this action is unavailable'), { status: 409 });
     }
+    // Online orders must be PAID before the seller starts preparing them;
+    // otherwise the order wedges at DELIVERED when payment never arrives.
+    if (order.paymentMethod !== 'COD' && order.paymentStatus !== 'PAID' && status !== 'CANCELLED') {
+      throw Object.assign(new Error('Payment is not complete for this order'), { status: 409 });
+    }
 
     // Delivery implies cash collected for COD orders. Paid online orders are
     // already PAID via the webhook; unpaid online orders cannot be delivered.
@@ -55,7 +61,13 @@ export async function transitionOrder(
 
     const result = await tx.order.updateMany({
       where: { id: order.id, status: order.status },
-      data: { status, ...(paymentStatus ? { paymentStatus } : {}) },
+      data: {
+        status,
+        ...(paymentStatus ? { paymentStatus } : {}),
+        // Record the refund debt inside the same transaction so a crash can
+        // never leave a paid-cancelled order without a refund amount.
+        ...(status === 'CANCELLED' && order.paymentStatus === 'PAID' ? { refundAmount: order.grandTotal } : {}),
+      },
     });
     if (result.count !== 1) throw Object.assign(new Error('Order changed. Refresh and try again.'), { status: 409 });
 
@@ -101,15 +113,34 @@ export async function transitionOrder(
     return tx.order.findUniqueOrThrow({ where: { id: order.id }, include: orderInclude });
   });
 
-  // A paid online order cancelled afterwards owes the customer a refund.
-  // The provider call runs outside the transaction; the ledger row marks the debt.
-  if (settled.status === 'CANCELLED' && settled.paymentStatus === 'REFUND_DUE' && settled.refundAmount == null) {
-    await prisma.order.update({
-      where: { id: settled.id },
-      data: { refundAmount: settled.grandTotal },
-    });
-  }
   return settled;
+}
+
+/**
+ * Executes pending refunds for cancelled orders that were paid online. The
+ * provider call runs outside any transaction; `paymentStatus` only flips to
+ * REFUNDED after the provider accepts, and failures are retried by the sweep.
+ */
+export async function processRefundDueOrders(): Promise<number> {
+  const due = await prisma.order.findMany({
+    where: { paymentStatus: 'REFUND_DUE', paymentProviderRef: { not: null }, refundAmount: { not: null } },
+    select: { id: true, paymentProviderRef: true, refundAmount: true },
+    take: 10,
+  });
+  let refunded = 0;
+  for (const order of due) {
+    try {
+      await refundPayment(order.paymentProviderRef!, Math.round((order.refundAmount ?? 0) * 100));
+      await prisma.order.updateMany({
+        where: { id: order.id, paymentStatus: 'REFUND_DUE' },
+        data: { paymentStatus: 'REFUNDED' },
+      });
+      refunded += 1;
+    } catch {
+      // Retried on the next sweep; a repeated failure should page the operator.
+    }
+  }
+  return refunded;
 }
 
 /**
@@ -128,6 +159,31 @@ export async function expireStaleOnlineOrders(): Promise<number> {
   });
   let count = 0;
   for (const order of stale) {
+    // Reconcile with the provider first: if the customer actually paid but the
+    // webhook was missed, confirm the order instead of cancelling it. If the
+    // provider is unreachable, skip the order this sweep — never cancel a
+    // possibly-paid order blindly.
+    if (order.paymentLinkId) {
+      try {
+        const link = await fetchLink(order.paymentLinkId);
+        const paidPayment = link.payments?.find(p => p.status === 'captured' || p.status === 'authorized');
+        if (link.status === 'paid' || paidPayment) {
+          await prisma.order.updateMany({
+            where: { id: order.id, status: 'PLACED', paymentStatus: 'PENDING' },
+            data: {
+              paymentStatus: 'PAID', paidAt: new Date(),
+              paymentProvider: 'razorpay', paymentProviderRef: paidPayment?.id ?? order.paymentLinkId,
+            },
+          });
+          await prisma.orderEvent.create({ data: { orderId: order.id, status: 'PLACED', message: 'Payment confirmed via provider reconciliation' } });
+          await queueNotification(prisma, { userId: order.customerId, orderId: order.id, template: 'PAYMENT_RECEIVED' });
+          count += 1;
+          continue;
+        }
+      } catch {
+        continue; // provider unreachable — retry this order on the next sweep
+      }
+    }
     try {
       await prisma.$transaction(async tx => {
         const result = await tx.order.updateMany({

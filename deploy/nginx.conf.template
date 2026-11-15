@@ -1,4 +1,4 @@
-map $uri $nestly_cache_control {
+map $uri $tamarin_cache_control {
     default "no-cache";
     ~^/(index\.html|flutter_bootstrap\.js|flutter\.js|main\.dart\.js|flutter_service_worker\.js|version\.json)$ "no-store";
 }
@@ -21,7 +21,7 @@ server {
     add_header X-Content-Type-Options nosniff always;
     add_header Referrer-Policy strict-origin-when-cross-origin always;
     add_header X-Frame-Options DENY always;
-    add_header Cache-Control $nestly_cache_control always;
+    add_header Cache-Control $tamarin_cache_control always;
     location /api/ {
         proxy_pass http://api:4000;
         proxy_set_header Host $host;

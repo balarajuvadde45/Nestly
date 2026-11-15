@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nestly/models/product.dart';
-import 'package:nestly/models/cart_item.dart';
-import 'package:nestly/services/api_mappers.dart';
+import 'package:tamarin/models/product.dart';
+import 'package:tamarin/models/cart_item.dart';
+import 'package:tamarin/services/api_mappers.dart';
 
 Product item({
   int min = 1,

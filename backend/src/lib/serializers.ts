@@ -191,7 +191,7 @@ export function serializeOrderItem(i: OrderItem) {
     selectedSize: i.selectedSize,
     specialInstructions: i.specialInstructions,
     isVeg: i.isVeg,
-    lineTotal: i.unitPrice * i.quantity,
+    lineTotal: Math.round(i.unitPrice * i.quantity * 100) / 100,
   };
 }
 

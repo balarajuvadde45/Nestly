@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-// Reuses Nestly's existing Material storefront mark for native launcher artwork.
+// Reuses Tamarin's existing Material storefront mark for native launcher artwork.
 void main() {
   test('generate launcher assets', () async {
     TestWidgetsFlutterBinding.ensureInitialized();

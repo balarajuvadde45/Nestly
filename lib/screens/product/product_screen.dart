@@ -7,6 +7,7 @@ import '../../core/utils/responsive.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/catalog_provider.dart';
+import '../../services/api_client.dart';
 // CatalogProvider used when adding to cart with vendor context
 import '../../widgets/app_network_image.dart';
 import '../../widgets/empty_state.dart';

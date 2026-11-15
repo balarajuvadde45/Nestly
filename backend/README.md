@@ -1,4 +1,4 @@
-# Nestly API
+# Tamarin API
 
 Express 5, Prisma, PostgreSQL, Redis, Twilio Verify, and authenticated Socket.IO. See [Setup](../SETUP.md), [Architecture](../docs/ARCHITECTURE.md), and [Deployment](../DEPLOY.md).
 

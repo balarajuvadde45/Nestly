@@ -516,7 +516,7 @@ Order orderFromJson(Map<String, dynamic> j) {
         .map(
           (e) => OrderEvent(
             message: e['message'] as String? ?? '',
-            time: DateTime.parse(e['createdAt'] as String),
+            time: DateTime.tryParse(e['createdAt'] as String? ?? '') ?? DateTime.now(),
           ),
         )
         .toList(),
@@ -532,6 +532,8 @@ Order orderFromJson(Map<String, dynamic> j) {
     discount: (j['discount'] as num?)?.toDouble() ?? 0,
     grandTotal: (j['grandTotal'] as num?)?.toDouble() ?? 0,
     paymentMethod: j['paymentMethod'] as String? ?? 'COD',
+    paymentStatus: j['paymentStatus'] as String? ?? 'PENDING',
+    paymentUrl: j['paymentUrl'] as String?,
     deliveryPartner: j['deliveryPartner'] as String?,
     estimatedDelivery: DateTime.tryParse(
       j['estimatedDelivery'] as String? ?? '',

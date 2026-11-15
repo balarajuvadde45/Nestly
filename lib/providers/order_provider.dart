@@ -9,7 +9,7 @@ import '../services/api_client.dart';
 import '../services/api_mappers.dart';
 import '../services/socket_service.dart';
 
-/// Orders from Nestly API only.
+/// Orders from Tamarin API only.
 class OrderProvider extends ChangeNotifier {
   OrderProvider(this._api, this._socket);
 
@@ -87,7 +87,7 @@ class OrderProvider extends ChangeNotifier {
     };
     final prefs = await SharedPreferences.getInstance();
     final signature = jsonEncode(body);
-    final saved = prefs.getString('nestly_checkout_pending');
+    final saved = prefs.getString('tamarin_checkout_pending');
     Map<String, dynamic>? pending;
     try {
       if (saved != null) pending = jsonDecode(saved) as Map<String, dynamic>;
@@ -96,14 +96,14 @@ class OrderProvider extends ChangeNotifier {
         ? pending!['key'] as String
         : const Uuid().v4();
     await prefs.setString(
-      'nestly_checkout_pending',
+      'tamarin_checkout_pending',
       jsonEncode({'signature': signature, 'key': key}),
     );
     final res = await _api.post(
       '/api/orders',
       body: {...body, 'idempotencyKey': key},
     );
-    await prefs.remove('nestly_checkout_pending');
+    await prefs.remove('tamarin_checkout_pending');
 
     final order = orderFromJson(Map<String, dynamic>.from(res['order'] as Map));
     _orders.insert(0, order);

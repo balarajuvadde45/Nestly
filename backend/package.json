@@ -1,7 +1,7 @@
 {
-  "name": "nestly-backend",
+  "name": "tamarin-backend",
   "version": "1.0.0",
-  "description": "Nestly marketplace API",
+  "description": "Tamarin marketplace API",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
@@ -22,7 +22,7 @@
     "admin:create": "tsx scripts/create-admin.ts"
   },
   "keywords": [
-    "nestly",
+    "tamarin",
     "marketplace"
   ],
   "license": "UNLICENSED",

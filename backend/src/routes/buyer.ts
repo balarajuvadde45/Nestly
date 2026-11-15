@@ -14,7 +14,7 @@ import {
 } from '../lib/marketplace';
 
 /**
- * Buyer-side API (Nestly shop).
+ * Buyer-side API (Tamarin shop).
  * Business accounts are opened FROM a logged-in buyer account only.
  */
 export const buyerRouter = Router();
@@ -113,10 +113,10 @@ buyerRouter.post('/open-business', async (req: AuthedRequest, res, next) => {
 
     const vendorType = body.businessType as VendorType;
     const tagline =
-      body.tagline?.trim() || 'Local business on Nestly';
+      body.tagline?.trim() || 'Local business on Tamarin';
     const description =
       body.description?.trim() ||
-      `${body.businessName} is a local business on Nestly.`;
+      `${body.businessName} is a local business on Tamarin.`;
 
     const vendorId = randomUUID();
     const [vendor] = await prisma.$transaction([

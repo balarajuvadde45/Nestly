@@ -1,7 +1,8 @@
 class AppConstants {
   AppConstants._();
 
-  static const String appName = 'Nestly';
+  static const String appName = 'Tamarin';
+  static const String partnerAppName = 'Tamarin Partner';
   static const String appTagline =
       'Local food, pickles, boutiques and wholesale';
   static const String currency = '₹';
@@ -19,6 +20,12 @@ class AppConstants {
   static const double maxContentWidth = 1280;
 
   static const Duration splashDuration = Duration(milliseconds: 2200);
+
+  /// Store listings for the companion app (opened from in-app CTAs).
+  static const String partnerAppStoreUrl =
+      'https://play.google.com/store/apps/details?id=in.tamarin.partner';
+  static const String customerAppStoreUrl =
+      'https://play.google.com/store/apps/details?id=in.tamarin.app';
   static const Duration animFast = Duration(milliseconds: 200);
   static const Duration animNormal = Duration(milliseconds: 300);
 }

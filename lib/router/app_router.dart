@@ -13,21 +13,13 @@ import '../screens/profile/addresses_screen.dart';
 import '../screens/profile/delete_account_screen.dart';
 import '../screens/legal/legal_screens.dart';
 import '../screens/search/search_screen.dart';
-import '../screens/admin/admin_applications_screen.dart';
-import '../screens/seller/seller_dashboard_screen.dart';
-import '../screens/seller/seller_entry_screen.dart';
-import '../screens/seller/seller_onboard_screen.dart';
-import '../screens/seller/seller_orders_screen.dart';
-import '../screens/seller/seller_products_screen.dart';
 import '../screens/shell/main_shell.dart';
-import '../screens/shell/seller_shell.dart';
 import '../screens/splash/splash_screen.dart';
 import '../screens/tracking/live_tracking_screen.dart';
 import '../screens/vendor/vendor_screen.dart';
 
 final GlobalKey<NavigatorState> _rootKey = GlobalKey<NavigatorState>();
 final GlobalKey<NavigatorState> _shellKey = GlobalKey<NavigatorState>();
-final GlobalKey<NavigatorState> _sellerShellKey = GlobalKey<NavigatorState>();
 
 GoRouter createAppRouter() {
   return GoRouter(
@@ -112,7 +104,6 @@ GoRouter createAppRouter() {
       GoRoute(
         path: '/login',
         builder: (context, state) => LoginScreen(
-          sellerMode: state.uri.queryParameters['seller'] == '1',
           nextPath: state.uri.queryParameters['next'],
         ),
       ),
@@ -136,68 +127,8 @@ GoRouter createAppRouter() {
         path: '/legal/terms',
         builder: (context, state) => const TermsOfServiceScreen(),
       ),
-      // Buyer → Seller gateway (motivation + business setup)
-      GoRoute(
-        path: '/sell',
-        builder: (context, state) => const SellerEntryScreen(),
-      ),
-      GoRoute(
-        path: '/sell/setup',
-        builder: (context, state) => const SellerBusinessSetupScreen(),
-      ),
-      // Legacy application form (admin still sees SellerApplication)
-      GoRoute(path: '/become-seller', redirect: (context, state) => '/sell'),
-      GoRoute(
-        path: '/admin/applications',
-        builder: (context, state) => const AdminApplicationsScreen(),
-      ),
-      // Seller dashboard — separate shell from buyer MainShell
-      ShellRoute(
-        navigatorKey: _sellerShellKey,
-        builder: (context, state, child) {
-          return SellerShell(location: state.uri.toString(), child: child);
-        },
-        routes: [
-          GoRoute(
-            path: '/seller',
-            pageBuilder: (context, state) =>
-                const NoTransitionPage(child: SellerDashboardScreen()),
-          ),
-          GoRoute(
-            path: '/seller/onboard',
-            redirect: (context, state) => '/sell/setup',
-          ),
-          GoRoute(
-            path: '/seller/products',
-            pageBuilder: (context, state) =>
-                const NoTransitionPage(child: SellerProductsScreen()),
-          ),
-          GoRoute(
-            path: '/seller/products/new',
-            builder: (context, state) => const SellerProductFormScreen(),
-          ),
-          GoRoute(
-            path: '/seller/products/:id/edit',
-            builder: (context, state) =>
-                SellerProductFormScreen(productId: state.pathParameters['id']),
-          ),
-          GoRoute(
-            path: '/seller/orders',
-            pageBuilder: (context, state) =>
-                const NoTransitionPage(child: SellerOrdersScreen()),
-          ),
-          GoRoute(
-            path: '/seller/orders/:id',
-            builder: (context, state) =>
-                SellerOrderDetailScreen(orderId: state.pathParameters['id']!),
-          ),
-          GoRoute(
-            path: '/seller/store',
-            pageBuilder: (context, state) =>
-                const NoTransitionPage(child: SellerStoreSettingsScreen()),
-          ),
-        ],
-      ),
+      // Selling happens in the separate Tamarin Partner app; the customer
+      // CTAs open its store listing (see core/utils/store_links.dart).
     ],
     errorBuilder: (context, state) => Scaffold(
       appBar: AppBar(title: const Text('Not found')),

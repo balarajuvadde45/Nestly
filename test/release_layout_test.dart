@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:nestly/providers/auth_provider.dart';
-import 'package:nestly/screens/auth/login_screen.dart';
-import 'package:nestly/services/api_client.dart';
-import 'package:nestly/services/socket_service.dart';
+import 'package:tamarin/providers/auth_provider.dart';
+import 'package:tamarin/screens/auth/login_screen.dart';
+import 'package:tamarin/services/api_client.dart';
+import 'package:tamarin/services/socket_service.dart';
 import 'package:provider/provider.dart';
 
 void main() {

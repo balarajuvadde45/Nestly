@@ -5,9 +5,11 @@ import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/responsive.dart';
-import '../../providers/auth_provider.dart';
+import '../../core/utils/store_links.dart';
+import '../../providers/location_provider.dart';
 import '../../providers/catalog_provider.dart';
 import '../../widgets/app_network_image.dart';
+import '../../widgets/location_picker.dart';
 import '../../widgets/category_chip.dart';
 import '../../widgets/marketplace_header.dart';
 import '../../widgets/product_card.dart';
@@ -34,7 +36,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final catalog = context.watch<CatalogProvider>();
-    final auth = context.watch<AuthProvider>();
+    final deliveryLocation = context.watch<LocationProvider>();
     final pad = Responsive.contentPadding(context);
     final wide = Responsive.isWide(context);
 
@@ -42,66 +44,62 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: AppColors.background,
       body: CustomScrollView(
         slivers: [
-          SliverAppBar(
-            floating: true,
-            snap: true,
-            pinned: wide,
-            backgroundColor: AppColors.surface,
-            elevation: 0,
-            toolbarHeight: 64,
-            titleSpacing: pad,
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          // Mobile-only header: location picker + cart. On wide screens the
+          // top MarketplaceHeader already carries cart/search/location.
+          if (!wide)
+            SliverAppBar(
+              floating: true,
+              snap: true,
+              backgroundColor: AppColors.surface,
+              elevation: 0,
+              toolbarHeight: 64,
+              titleSpacing: pad,
+              title: InkWell(
+                onTap: () => showDeliveryLocationPicker(context),
+                borderRadius: BorderRadius.circular(8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(
-                      Icons.location_on_rounded,
-                      color: AppColors.primary,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
-                        auth.user?.defaultAddress?.area ??
-                            AppConstants.defaultArea,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 16,
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.location_on_rounded,
+                          color: AppColors.primary,
+                          size: 20,
                         ),
-                        overflow: TextOverflow.ellipsis,
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            deliveryLocation.location.area,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
+                      ],
+                    ),
+                    Text(
+                      deliveryLocation.location.short,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
-                    const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
                   ],
                 ),
-                Text(
-                  auth.user?.defaultAddress?.short ??
-                      '${AppConstants.defaultArea}, ${AppConstants.defaultCity}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w400,
-                  ),
+              ),
+              actions: [
+                IconButton(
+                  onPressed: () => context.push('/cart'),
+                  icon: const Icon(Icons.shopping_bag_outlined),
+                  tooltip: 'Cart',
                 ),
               ],
             ),
-            actions: [
-              IconButton(
-                onPressed: () => context.push('/cart'),
-                icon: const Icon(Icons.shopping_bag_outlined),
-                tooltip: 'Cart',
-              ),
-              if (wide) ...[
-                TextButton.icon(
-                  onPressed: () => context.go('/search'),
-                  icon: const Icon(Icons.search),
-                  label: const Text('Search'),
-                ),
-                const SizedBox(width: 8),
-              ],
-            ],
-          ),
           SliverToBoxAdapter(
             child: Responsive.constrained(
               child: Column(
@@ -153,10 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               ),
                             ),
-                            Icon(
-                              Icons.mic_none_rounded,
-                              color: AppColors.primary,
-                            ),
+
                           ],
                         ),
                       ),
@@ -227,7 +222,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               const SizedBox(height: 14),
                               ElevatedButton(
-                                onPressed: () => context.push('/sell'),
+                                onPressed: () => openPartnerAppStore(context),
                                 child: const Text('Become a seller'),
                               ),
                             ],
@@ -448,7 +443,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   crossAxisCount: cols,
                                   mainAxisSpacing: 14,
                                   crossAxisSpacing: 14,
-                                  childAspectRatio: cols == 1 ? 1.55 : 0.95,
+                                  childAspectRatio: 0.95,
                                 ),
                             itemBuilder: (context, i) =>
                                 VendorCard(vendor: catalog.topRated[i]),
@@ -491,7 +486,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [Color(0xFFFFF3E0), Color(0xFFFFE0B2)],
+                          colors: [AppColors.violet50, AppColors.violet100],
                         ),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
@@ -522,7 +517,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                                 const SizedBox(height: 14),
                                 ElevatedButton(
-                                  onPressed: () => context.push('/sell'),
+                                  onPressed: () => openPartnerAppStore(context),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: AppColors.secondary,
                                   ),

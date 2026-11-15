@@ -1,12 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nestly/main.dart';
+import 'package:tamarin/main.dart';
 
 void main() {
-  testWidgets('Nestly app boots to splash', (WidgetTester tester) async {
-    await tester.pumpWidget(const NestlyApp());
+  testWidgets('Tamarin app boots to splash', (WidgetTester tester) async {
+    await tester.pumpWidget(const TamarinApp());
     await tester.pump();
 
-    expect(find.text('Nestly'), findsWidgets);
+    expect(find.text('Tamarin'), findsWidgets);
 
     await tester.pump(const Duration(milliseconds: 2500));
   });

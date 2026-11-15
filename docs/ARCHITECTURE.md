@@ -2,7 +2,7 @@
 
 ## Shape
 
-Nestly is a modular monolith with one shared transactional database. This is an implementation description, not a claim of audited security or unlimited capacity.
+Tamarin is a modular monolith with one shared transactional database. This is an implementation description, not a claim of audited security or unlimited capacity.
 
 ```text
 Flutter Android / iOS / Web
@@ -70,4 +70,4 @@ Start with measured API capacity and managed ingress. Add replicas after checkou
 
 ## Etsy Reference
 
-Etsy is useful for seller identity, authentic photography, clear processing times, and accountable shop policies. Nestly's FMCG and local food model is different and must have its own permitted-products and operational rules; Etsy's resale restrictions should not be copied blindly. No Etsy catalog, photos, or proprietary design was imported. Reference: [Etsy Seller Policy](https://www.etsy.com/legal/sellers/).
+Etsy is useful for seller identity, authentic photography, clear processing times, and accountable shop policies. Tamarin's FMCG and local food model is different and must have its own permitted-products and operational rules; Etsy's resale restrictions should not be copied blindly. No Etsy catalog, photos, or proprietary design was imported. Reference: [Etsy Seller Policy](https://www.etsy.com/legal/sellers/).

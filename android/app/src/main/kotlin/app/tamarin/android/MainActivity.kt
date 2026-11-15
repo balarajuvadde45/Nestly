@@ -1,4 +1,4 @@
-package app.nestly.android
+package app.tamarin.android
 
 import io.flutter.embedding.android.FlutterActivity
 

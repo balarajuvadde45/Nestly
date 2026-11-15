@@ -106,12 +106,28 @@ class ApiClient {
       }
     }
     if (res.statusCode >= 400) {
-      throw ApiException(
-        res.statusCode,
-        (json['error'] as String?) ?? 'Request failed (${res.statusCode})',
-      );
+      throw ApiException(res.statusCode, _errorMessage(json, res.statusCode));
     }
     return json;
+  }
+
+  /// Server errors arrive as `{ error: "..." }`, `{ error: { message } }`,
+  /// `{ message: "..." }` or zod `{ error: { formErrors: [...] } }` — extract
+  /// a user-safe string without ever throwing here.
+  String _errorMessage(Map<String, dynamic> json, int statusCode) {
+    final error = json['error'];
+    if (error is String && error.isNotEmpty) return error;
+    if (error is Map) {
+      final message = error['message'];
+      if (message is String && message.isNotEmpty) return message;
+      final formErrors = error['formErrors'];
+      if (formErrors is List && formErrors.isNotEmpty) {
+        return formErrors.whereType<String>().join(', ');
+      }
+    }
+    final message = json['message'];
+    if (message is String && message.isNotEmpty) return message;
+    return 'Request failed ($statusCode)';
   }
 
   void close() => _client.close();

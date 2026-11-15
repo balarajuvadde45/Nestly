@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Multi-stage build for the Nestly API. Produces a small production image
+# Multi-stage build for the Tamarin API. Produces a small production image
 # that runs the compiled JS (dist/) on Node 22 LTS.
 
 FROM node:22-bookworm-slim AS base

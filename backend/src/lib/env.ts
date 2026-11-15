@@ -8,7 +8,7 @@ dotenv.config(); // fallback: cwd .env
 function required(name: string, value: string | undefined): string {
   if (!value || value.trim() === '' || value.includes('CHANGE_ME')) {
     throw new Error(
-      `[Nestly config] Missing or placeholder value for ${name}. ` +
+      `[Tamarin config] Missing or placeholder value for ${name}. ` +
         `Edit backend/.env (see backend/.env.example).`,
     );
   }
@@ -42,7 +42,7 @@ function resolveDatabaseUrl(): string {
 
   if (!host || !user || !password || !name) {
     throw new Error(
-      '[Nestly config] Set DATABASE_URL in backend/.env, OR set DB_HOST, DB_USER, DB_PASSWORD, DB_NAME. ' +
+      '[Tamarin config] Set DATABASE_URL in backend/.env, OR set DB_HOST, DB_USER, DB_PASSWORD, DB_NAME. ' +
         'Copy backend/.env.example → backend/.env and fill real values.',
     );
   }
@@ -53,7 +53,7 @@ function resolveDatabaseUrl(): string {
     password.includes('MASKED')
   ) {
     throw new Error(
-      '[Nestly config] DB_PASSWORD is still a placeholder. Put your real PostgreSQL password in backend/.env.',
+      '[Tamarin config] DB_PASSWORD is still a placeholder. Put your real PostgreSQL password in backend/.env.',
     );
   }
 
@@ -101,8 +101,25 @@ if (!env.isDev) {
     throw new Error('Production JWT_SECRET must be a random secret of at least 32 characters');
   }
   if (!env.redisUrl) throw new Error('Production requires REDIS_URL');
+  if (env.trustProxyHops < 1) {
+    throw new Error('Production sits behind a proxy: set TRUST_PROXY_HOPS to the real hop count (>= 1)');
+  }
+  const dbUrl = process.env.DATABASE_URL ?? '';
+  if (!dbUrl.includes('sslmode=') && process.env.DB_SSL?.toLowerCase() !== 'true') {
+    throw new Error('Production requires an encrypted database connection (DB_SSL=true or sslmode=require)');
+  }
   if (!env.twilioAccountSid || !env.twilioAuthToken || !env.twilioVerifyServiceSid) {
     throw new Error('Production requires Twilio Verify credentials for phone authentication');
+  }
+  if (process.env.REQUIRE_ONLINE_PAYMENTS !== 'false' &&
+      (!env.razorpayKeyId || !env.razorpayKeySecret || !env.razorpayWebhookSecret)) {
+    throw new Error('Production requires Razorpay credentials (set REQUIRE_ONLINE_PAYMENTS=false for COD-only launch)');
+  }
+  if (!env.uploadDir || !env.mediaBaseUrl) {
+    throw new Error('Production requires UPLOAD_DIR and MEDIA_BASE_URL for seller media');
+  }
+  if (env.corsOrigin === '*') {
+    throw new Error('Production CORS_ORIGIN must list exact HTTPS origins');
   }
   for (const origin of env.corsOrigin.split(',').map(v => v.trim())) {
     const url = new URL(origin);

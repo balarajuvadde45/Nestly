@@ -9,12 +9,12 @@ Status: **not yet cleared for public store submission**. Removing prototype beha
 - Server quotes, idempotent checkout, atomic stock reservations, quantity/expiry checks, immutable address snapshots, and explicit order transitions.
 - Human seller approval, stock-safe product archiving, persisted favorites, and reauthenticated account deletion.
 - Removed bundled marketplace records, fabricated coupon discounts, simulated courier tracking, and unrelated community screens from the runtime.
-- HTTPS release configuration, native secure token storage, Android signing checks, iOS identifiers, and Nestly launcher artwork.
+- HTTPS release configuration, native secure token storage, Android signing checks, iOS identifiers, and Tamarin launcher artwork.
 - Compiled non-root API image, separate migrations, TLS reverse-proxy configuration, reference-only seed, and CI checks.
 
 ## Owner Setup Before Launch
 
-- Confirm business entity, launch area, permitted seller categories, brand ownership, and `in.nestly.app` identifiers.
+- Confirm business entity, launch area, permitted seller categories, brand ownership, and `in.tamarin.app` identifiers.
 - Supply production domains, database, Redis, SMS provider, secret management, monitoring, and backup ownership. See [Deployment](../DEPLOY.md).
 - Publish actual privacy, terms, refunds/cancellation, support, and data-deletion information. Explain any transaction retention accurately. Have qualified local advisers review food, packaging, taxation, marketplace, and privacy obligations; fields in the database do not establish compliance.
 - Establish seller verification, product moderation, food safety escalation, delivery, cancellation disputes, cash reconciliation, and customer support procedures with named operators.
@@ -54,7 +54,7 @@ These are engineering gaps, not features that become operational simply by purch
 
 Run `node scripts/release-inventory.mjs` to regenerate `artifacts/release-inventory.json`. It records project paths, hashes, byte sizes, and text line counts, excluding secrets, dependencies, and build output. The inventory covers 255 files at this handoff; it is not a line-by-line semantic audit or a security certification.
 
-The release-hardening work uses an isolated `nestly_test` PostgreSQL database, not the operator's production database. Local automated checks and their final results are recorded in the implementation handoff. Configured CI jobs are not evidence that remote CI or native store builds have passed.
+The release-hardening work uses an isolated `tamarin_test` PostgreSQL database, not the operator's production database. Local automated checks and their final results are recorded in the implementation handoff. Configured CI jobs are not evidence that remote CI or native store builds have passed.
 
 Verification on 2026-09-09:
 

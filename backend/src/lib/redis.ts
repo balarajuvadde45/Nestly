@@ -10,7 +10,7 @@ redis?.on('error', () => logger.error('Redis connection failed'));
 
 export function rateLimitStore(prefix: string) {
   return redis ? new RedisStore({
-    prefix: `nestly:limit:${prefix}:`,
+    prefix: `tamarin:limit:${prefix}:`,
     sendCommand: (...args: string[]) => redis.sendCommand(args),
   }) : undefined;
 }

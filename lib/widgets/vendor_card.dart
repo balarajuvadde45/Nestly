@@ -58,7 +58,7 @@ class VendorCard extends StatelessWidget {
                         vertical: 5,
                       ),
                       decoration: const BoxDecoration(
-                        color: Color(0xFF1A237E),
+                        color: AppColors.violet800,
                         borderRadius: BorderRadius.only(
                           topRight: Radius.circular(8),
                           bottomRight: Radius.circular(8),
@@ -205,7 +205,7 @@ class VendorCard extends StatelessWidget {
                         horizontal: 8,
                         vertical: 4,
                       ),
-                      color: const Color(0xFF1A237E),
+                      color: AppColors.violet800,
                       child: Text(
                         vendor.offerText!,
                         style: const TextStyle(

@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:nestly/services/api_client.dart';
+import 'package:tamarin/services/api_client.dart';
 
 void main() {
   test(

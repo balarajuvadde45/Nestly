@@ -7,6 +7,7 @@ import '../../core/utils/formatters.dart';
 import '../../core/utils/responsive.dart';
 import '../../models/order.dart';
 import '../../providers/order_provider.dart';
+import '../../services/api_client.dart';
 import '../../widgets/app_network_image.dart';
 import '../../widgets/empty_state.dart';
 

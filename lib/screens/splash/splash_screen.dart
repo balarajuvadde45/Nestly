@@ -4,7 +4,9 @@ import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+  const SplashScreen({super.key, this.initialRoute = '/home'});
+
+  final String initialRoute;
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -28,7 +30,7 @@ class _SplashScreenState extends State<SplashScreen>
     _controller.forward();
 
     Future.delayed(AppConstants.splashDuration, () {
-      if (mounted) context.go('/home');
+      if (mounted) context.go(widget.initialRoute);
     });
   }
 

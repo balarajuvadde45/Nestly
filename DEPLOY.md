@@ -60,7 +60,7 @@ npm run db:migrate:deploy
 npm start
 ```
 
-The test database is separate: integration tests run only when `TEST_DATABASE_URL` names an isolated `nestly_test` database. Do not set it to production. Never use `prisma db push`, `db:reset`, or `migrate reset` as a deployment step.
+The test database is separate: integration tests run only when `TEST_DATABASE_URL` names an isolated `tamarin_test` database. Do not set it to production. Never use `prisma db push`, `db:reset`, or `migrate reset` as a deployment step.
 
 `render.yaml` supplies the managed API build, pre-deploy migration, compiled start and readiness settings. It does not create your PostgreSQL, Redis, domains, SMS service, monitoring or web hosting. Confirm the host's actual proxy topology before accepting the configured one-hop trust value.
 
@@ -96,7 +96,7 @@ Upload `build/web` to the chosen static host or mount it for Nginx. Preserve rou
 
 ## Android Release
 
-Confirm the application ID `in.nestly.app`, install Android SDK/JDK, accept SDK licenses, and resolve `flutter doctor` issues. Create a protected upload keystore and populate `android/key.properties` from its example. Back up the upload key securely and configure Play App Signing. Release tasks refuse debug-key fallback.
+Confirm the application IDs (`in.tamarin.app` customer, `in.tamarin.partner` partner — Android flavors `customer`/`partner`), install Android SDK/JDK, accept SDK licenses, and resolve `flutter doctor` issues. Create a protected upload keystore and populate `android/key.properties` from its example. Back up the upload key securely and configure Play App Signing. Release tasks refuse debug-key fallback.
 
 ```powershell
 ./scripts/build-release.ps1 -Target android
@@ -106,7 +106,7 @@ Expected artifact: `build/app/outputs/bundle/release/app-release.aab`. Increment
 
 ## iOS Release
 
-Use a Mac with Xcode and a paid Apple developer account. Register `in.nestly.app`, configure the correct team/signing capabilities in `ios/Runner.xcworkspace`, and verify provisioning and plugin entitlements. Never commit signing certificates or profiles.
+Use a Mac with Xcode and a paid Apple developer account. Register `in.tamarin.app` and `in.tamarin.partner` (iOS schemes per INTEGRATIONS.md §9), configure the correct team/signing capabilities in `ios/Runner.xcworkspace`, and verify provisioning and plugin entitlements. Never commit signing certificates or profiles.
 
 On macOS with PowerShell installed, use `./scripts/build-release.ps1 -Target ios`; alternatively run the same analyze/test checks and `flutter build ipa --release --dart-define-from-file=config/release.json`. Upload the resulting archive through the Apple-supported distribution flow, validate with TestFlight and physical devices, and complete privacy, encryption and app-review disclosures.
 

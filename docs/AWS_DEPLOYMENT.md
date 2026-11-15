@@ -1,6 +1,6 @@
-# Nestly on AWS — production setup (initial budget under $200/month)
+# Tamarin on AWS — production setup (initial budget under $200/month)
 
-Nestly is a Flutter app (Android, iOS, web) backed by a Node/Express API with
+Tamarin is a Flutter app (Android, iOS, web) backed by a Node/Express API with
 PostgreSQL and Redis. This plan runs all of it on AWS with a monthly bill well
 inside $200 for launch volumes, and each piece scales independently later.
 
@@ -57,7 +57,7 @@ backups, or a second Fargate task.
 2. **RDS**: create db.t4g.micro PostgreSQL 16, set `DATABASE_URL` from its
    endpoint, enable automated backups. Run `npx prisma migrate deploy` from a
    one-off ECS job or your machine over VPN/whitelisted IP.
-3. **ECR + image**: `docker build -t nestly-api . && docker push` to ECR
+3. **ECR + image**: `docker build -t tamarin-api . && docker push` to ECR
    (backend Dockerfile already in repo).
 4. **ECS**: cluster + task definition (env vars: NODE_ENV=production,
    PORT=4000, DATABASE_URL, JWT_SECRET 32+ chars, REDIS_URL, Twilio Verify
@@ -84,9 +84,9 @@ backups, or a second Fargate task.
   (`https://<api-domain>/payments/webhook`) and the raw-body route stays
   mounted before the JSON parser — already the case in `app.ts`.
 
-## How Nestly compares (what "advanced" buys us)
+## How Tamarin compares (what "advanced" buys us)
 
-- **vs Shopify/Dukaan-style single-store builders**: Nestly is multi-vendor by
+- **vs Shopify/Dukaan-style single-store builders**: Tamarin is multi-vendor by
   design — many home businesses, each with their own products, serviceable
   pincodes, and earnings ledger; commission per seller (10% default).
 - **vs generic marketplaces**: we own the full order lifecycle (COD implies

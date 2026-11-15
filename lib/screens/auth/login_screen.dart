@@ -9,10 +9,9 @@ import '../../providers/auth_provider.dart';
 
 /// Production Login + Sign up (verified phone and email).
 class LoginScreen extends StatefulWidget {
-  final bool sellerMode;
   final String? nextPath;
 
-  const LoginScreen({super.key, this.sellerMode = false, this.nextPath});
+  const LoginScreen({super.key, this.nextPath});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -49,7 +48,7 @@ class _LoginScreenState extends State<LoginScreen>
     _methodTabs = TabController(
       length: 2,
       vsync: this,
-      initialIndex: widget.sellerMode ? 1 : 0,
+      initialIndex: 0,
     );
   }
 
@@ -144,9 +143,7 @@ class _LoginScreenState extends State<LoginScreen>
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  widget.sellerMode
-                      ? 'Seller account'
-                      : 'Welcome to ${AppConstants.appName}',
+                  'Welcome to ${AppConstants.appName}',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontWeight: FontWeight.w800,
@@ -156,9 +153,7 @@ class _LoginScreenState extends State<LoginScreen>
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  widget.sellerMode
-                      ? 'Sign in to manage your business'
-                      : 'Login or create an account to order & sell',
+                  'Login or create an account to order & sell',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: AppColors.textSecondary,
@@ -604,25 +599,11 @@ class _LoginScreenState extends State<LoginScreen>
   void _goAfterLogin(BuildContext context, AuthProvider auth) {
     final next = widget.nextPath;
     if (next != null && next.startsWith('/')) {
-      if (next.startsWith('/sell') || next.startsWith('/seller')) {
-        if (auth.hasBusiness || auth.isSeller) {
-          auth.enterSellerMode();
-        }
-      }
       context.go(next);
       return;
     }
     if (auth.user?.role == 'ADMIN') {
       context.go('/admin/applications');
-      return;
-    }
-    if (widget.sellerMode && (auth.hasBusiness || auth.isSeller)) {
-      auth.enterSellerMode();
-      context.go('/seller');
-      return;
-    }
-    if (widget.sellerMode) {
-      context.go('/sell');
       return;
     }
     auth.enterBuyerMode();

@@ -123,6 +123,7 @@ class Vendor {
   }
 
   Vendor copyWith({
+    bool? isApproved,
     bool? isOpen,
     String? offerText,
     String? name,
@@ -165,6 +166,7 @@ class Vendor {
       categories: categories,
       tags: tags,
       isOpen: isOpen ?? this.isOpen,
+      isApproved: isApproved ?? this.isApproved,
       isPureVeg: isPureVeg,
       freeDelivery: freeDelivery ?? this.freeDelivery,
       minOrder: minOrder,

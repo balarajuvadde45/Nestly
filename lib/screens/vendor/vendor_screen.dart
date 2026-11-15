@@ -249,14 +249,14 @@ class _VendorScreenState extends State<VendorScreen> {
                             width: double.infinity,
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFE8EAF6),
+                              color: AppColors.violet100,
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Row(
                               children: [
                                 const Icon(
                                   Icons.local_offer_rounded,
-                                  color: Color(0xFF1A237E),
+                                  color: AppColors.violet800,
                                   size: 18,
                                 ),
                                 const SizedBox(width: 8),
@@ -264,7 +264,7 @@ class _VendorScreenState extends State<VendorScreen> {
                                   child: Text(
                                     vendor.offerText!,
                                     style: const TextStyle(
-                                      color: Color(0xFF1A237E),
+                                      color: AppColors.violet800,
                                       fontWeight: FontWeight.w600,
                                       fontSize: 13,
                                     ),

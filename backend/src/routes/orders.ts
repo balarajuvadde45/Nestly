@@ -10,6 +10,8 @@ import { parseWholesaleTiers, priceForQuantity, safeJsonArray } from '../lib/mar
 import { orderInclude, transitionOrder } from '../lib/order-lifecycle';
 import { fromPaise, toPaise, totals } from '../lib/pricing';
 import { createPaymentLink, onlinePaymentsConfigured } from '../lib/payments';
+import { logger } from '../lib/logger';
+
 import { expireStaleOnlineOrders } from '../lib/order-lifecycle';
 import { env } from '../lib/env';
 
@@ -50,27 +52,39 @@ async function quote(tx: Prisma.TransactionClient, customerId: string, body: Inp
   if (products.length !== ids.length) fail('One or more items are unavailable');
   const quantities = new Map<string, number>();
   for (const item of body.items) quantities.set(item.productId, (quantities.get(item.productId) ?? 0) + item.quantity);
-  const lines = body.items.map(item => {
-    const product = products.find(p => p.id === item.productId)!;
-    const quantity = quantities.get(product.id)!;
-    if (!product.isAvailable || (product.expiryDate && product.expiryDate <= new Date())) fail(product.name + ' is unavailable');
-    if (item.quantity < product.minOrderQuantity ||
-        (product.casePackQuantity && item.quantity % product.casePackQuantity !== 0)) fail(product.name + ': check minimum quantity and case pack');
-    if (product.maxOrderQuantity && quantity > product.maxOrderQuantity) fail(product.name + ': maximum quantity exceeded');
-    if (product.stockQuantity != null && quantity > product.stockQuantity) fail(product.name + ': insufficient stock');
-    const sizes = safeJsonArray(product.sizesJson);
-    if ((sizes.length && !sizes.includes(item.selectedSize ?? '')) || (!sizes.length && item.selectedSize)) fail(product.name + ': select a valid size');
-    const unitPrice = fromPaise(toPaise(priceForQuantity(product.price, item.quantity, parseWholesaleTiers(product.wholesaleTiersJson))));
-    const gstRate = product.gstRate ?? 0;
-    if (product.mrp != null && unitPrice > product.mrp) fail(product.name + ': price exceeds MRP');
-    return {
-      productId: product.id, productName: product.name, productImage: product.imageUrl,
-      unitPrice, quantity: item.quantity, unitLabel: product.unitLabel,
-      hsnCode: product.hsnCode, gstRate,
-      lineTax: fromPaise(Math.round(toPaise(unitPrice) * item.quantity * gstRate / (100 + gstRate))),
-      selectedSize: item.selectedSize, specialInstructions: item.specialInstructions, isVeg: product.isVeg,
-    };
-  });
+  const lines = (() => {
+    // Merge duplicate lines (same product + size + instructions) so MOQ, case
+    // packs, max quantities and wholesale slabs are always evaluated on the
+    // aggregate quantity — splitting a 10-unit MOQ into two 5-unit lines must
+    // not bypass the rules.
+    const merged = new Map<string, { item: Input['items'][number]; quantity: number }>();
+    for (const item of body.items) {
+      const key = item.productId + '|' + (item.selectedSize ?? '') + '|' + (item.specialInstructions ?? '');
+      const existing = merged.get(key);
+      if (existing) existing.quantity += item.quantity;
+      else merged.set(key, { item, quantity: item.quantity });
+    }
+    return [...merged.values()].map(({ item, quantity }) => {
+      const product = products.find(p => p.id === item.productId)!;
+      if (!product.isAvailable || (product.expiryDate && product.expiryDate <= new Date())) fail(product.name + ' is unavailable');
+      if (quantity < product.minOrderQuantity ||
+          (product.casePackQuantity && quantity % product.casePackQuantity !== 0)) fail(product.name + ': check minimum quantity and case pack');
+      if (product.maxOrderQuantity && quantity > product.maxOrderQuantity) fail(product.name + ': maximum quantity exceeded');
+      if (product.stockQuantity != null && quantity > product.stockQuantity) fail(product.name + ': insufficient stock');
+      const sizes = safeJsonArray(product.sizesJson);
+      if ((sizes.length && !sizes.includes(item.selectedSize ?? '')) || (!sizes.length && item.selectedSize)) fail(product.name + ': select a valid size');
+      const unitPrice = fromPaise(toPaise(priceForQuantity(product.price, quantity, parseWholesaleTiers(product.wholesaleTiersJson))));
+      const gstRate = product.gstRate ?? 0;
+      if (product.mrp != null && unitPrice > product.mrp) fail(product.name + ': price exceeds MRP');
+      return {
+        productId: product.id, productName: product.name, productImage: product.imageUrl,
+        unitPrice, quantity, unitLabel: product.unitLabel,
+        hsnCode: product.hsnCode, gstRate,
+        lineTax: fromPaise(Math.round(toPaise(unitPrice) * quantity * gstRate / (100 + gstRate))),
+        selectedSize: item.selectedSize, specialInstructions: item.specialInstructions, isVeg: product.isVeg,
+      };
+    });
+  })();
   const amounts = totals(lines, vendor.freeDelivery);
   if (vendor.minOrder != null && amounts.itemTotal < vendor.minOrder) fail('Minimum order is Rs ' + vendor.minOrder);
   const addressSnapshot = serializeAddress(address);
@@ -148,16 +162,22 @@ ordersRouter.post('/', async (req: AuthedRequest, res, next) => {
         const link = await createPaymentLink({
           orderId: order.id,
           amountPaise: Math.round((order.grandTotal) * 100),
-          customerName: customer?.name ?? 'Nestly customer',
+          customerName: customer?.name ?? 'Tamarin customer',
           customerPhone: customer?.phone ?? '',
           customerEmail: customer?.email ?? '',
-          description: `Nestly order ${order.id.slice(0, 8)}`,
+          description: `Tamarin order ${order.id.slice(0, 8)}`,
         });
-        order = await prisma.order.update({
-          where: { id: order.id },
+        // Claim the link slot conditionally: two concurrent placements must
+        // never leave two live links bound to one order. The loser's link is
+        // unbound (the webhook marks any payment on it for refund).
+        const claimed = await prisma.order.updateMany({
+          where: { id: order.id, paymentLinkId: null },
           data: { paymentLinkId: link.linkId, paymentUrl: link.shortUrl, paymentProvider: 'razorpay' },
-          include: orderInclude,
         });
+        order = await prisma.order.findUniqueOrThrow({ where: { id: order.id }, include: orderInclude });
+        if (claimed.count !== 1) {
+          logger.warn({ orderId: order.id }, 'Duplicate payment link created concurrently; keeping the bound link');
+        }
       } catch (e) {
         await transitionOrder({ id: order.id }, 'CANCELLED', 'Cancelled: payment link could not be created');
         throw e;
@@ -218,10 +238,10 @@ ordersRouter.post('/:id/pay', async (req: AuthedRequest, res, next) => {
     const link = await createPaymentLink({
       orderId: order.id,
       amountPaise: Math.round(order.grandTotal * 100),
-      customerName: customer?.name ?? 'Nestly customer',
+      customerName: customer?.name ?? 'Tamarin customer',
       customerPhone: customer?.phone ?? '',
       customerEmail: customer?.email ?? '',
-      description: `Nestly order ${order.id.slice(0, 8)}`,
+      description: `Tamarin order ${order.id.slice(0, 8)}`,
     });
     const updated = await prisma.order.update({
       where: { id: order.id },
@@ -266,7 +286,7 @@ ordersRouter.get('/:id/invoice', async (req: AuthedRequest, res, next) => {
     const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Invoice ${escapeHtml(invoiceNumber)}</title></head>
 <body style="font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:24px auto;color:#1a1a1a">
-  <h1 style="font-size:20px;margin:0">Nestly tax invoice</h1>
+  <h1 style="font-size:20px;margin:0">Tamarin tax invoice</h1>
   <p style="color:#555;margin:4px 0 16px">${escapeHtml(invoiceNumber)} &middot; ${order.placedAt.toISOString().slice(0, 10)}</p>
   <p style="margin:4px 0"><strong>Sold by:</strong> ${escapeHtml(order.vendor.name)}${order.vendor.gstin ? ` &middot; GSTIN ${escapeHtml(order.vendor.gstin)}` : ' &middot; GSTIN not provided'}</p>
   <p style="margin:4px 0"><strong>Billed to:</strong> ${escapeHtml(buyer.label ?? 'Customer')}, ${escapeHtml(buyer.fullAddress ?? '')}, ${escapeHtml(buyer.city ?? '')} ${escapeHtml(buyer.pincode ?? '')}</p>

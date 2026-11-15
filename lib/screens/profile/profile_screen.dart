@@ -6,9 +6,9 @@ import '../../core/config/app_config.dart';
 import '../legal/legal_screens.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/order_provider.dart';
-import '../../providers/seller_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/responsive.dart';
+import '../../core/utils/store_links.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/catalog_provider.dart';
 import '../../widgets/empty_state.dart';
@@ -43,7 +43,7 @@ class ProfileScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 12),
                           const Text(
-                            'Welcome to Nestly',
+                            'Welcome to Tamarin',
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 18,
@@ -185,14 +185,7 @@ class ProfileScreen extends StatelessWidget {
               auth.hasBusiness
                   ? 'Switch to business dashboard'
                   : 'Register your local business',
-              () {
-                if (auth.hasBusiness || auth.isSeller) {
-                  auth.enterSellerMode();
-                  context.go('/seller');
-                } else {
-                  context.push('/sell');
-                }
-              },
+              () => showSellDialog(context),
             ),
             _tile(
               Icons.help_outline_rounded,
@@ -209,7 +202,7 @@ class ProfileScreen extends StatelessWidget {
             _tile(
               Icons.gavel_outlined,
               'Terms of service',
-              'Rules for using Nestly',
+              'Rules for using Tamarin',
               () => context.push('/legal/terms'),
             ),
             _tile(
@@ -238,7 +231,6 @@ class ProfileScreen extends StatelessWidget {
                 onPressed: () async {
                   context.read<CartProvider>().clear();
                   context.read<OrderProvider>().clear();
-                  context.read<SellerProvider>().clear();
                   await auth.logout();
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(

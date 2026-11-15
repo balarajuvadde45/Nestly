@@ -6,6 +6,7 @@ import { createApp } from './app';
 import { redis } from './lib/redis';
 import { initSocket, closeSocket } from './socket';
 import { NotificationWorker } from './lib/notification-worker';
+import { expireStaleOnlineOrders, processRefundDueOrders } from './lib/order-lifecycle';
 
 async function main(): Promise<void> {
   // Fail fast if the DB is unreachable.
@@ -29,14 +30,24 @@ async function main(): Promise<void> {
   const notifications = new NotificationWorker();
   notifications.start();
 
+  // Money-critical sweeps: reconcile stale online orders (they must never be
+  // cancelled while the provider actually captured money) and execute pending
+  // refunds. Both are idempotent and safe to run on every instance.
+  const sweeps = setInterval(() => {
+    void expireStaleOnlineOrders().catch((err) => logger.error({ err }, 'Stale-order sweep failed'));
+    void processRefundDueOrders().catch((err) => logger.error({ err }, 'Refund sweep failed'));
+  }, 60_000);
+  sweeps.unref();
+
   server.listen(env.port, () => {
-    logger.info({ port: env.port }, 'Nestly API ready');
+    logger.info({ port: env.port }, 'Tamarin API ready');
   });
 
   // Graceful shutdown: stop accepting connections, drain, disconnect DB.
   const shutdown = (signal: string): void => {
     logger.info(`${signal} received — shutting down gracefully`);
     notifications.stop();
+    clearInterval(sweeps);
     void closeSocket();
     server.close(() => {
       void Promise.all([prisma.$disconnect(), redis?.isOpen ? redis.quit() : Promise.resolve()]).finally(() => {

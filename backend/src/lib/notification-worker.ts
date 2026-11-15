@@ -19,7 +19,9 @@ export class NotificationWorker {
 
   start() {
     if (this.timer) return;
-    this.timer = setInterval(() => { void this.drain(); }, 15_000);
+    // A transient DB error inside drain() must never become an unhandled
+    // rejection (which would terminate the whole API process).
+    this.timer = setInterval(() => { void this.drain().catch(() => undefined); }, 15_000);
     this.timer.unref?.();
   }
 
@@ -36,8 +38,8 @@ export class NotificationWorker {
       : null;
     // In-app notification: every client polls /notifications/inbox, so marking
     // the row delivered is the delivery. Push/email providers attach here.
-    return Boolean(user);
     void message;
+    return Boolean(user);
   }
 
   async drain(): Promise<{ sent: number; failed: number }> {

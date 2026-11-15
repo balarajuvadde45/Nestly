@@ -8,7 +8,7 @@ import '../models/product.dart';
 import '../models/vendor.dart';
 import '../services/api_mappers.dart';
 
-const _kCartKey = 'nestly_cart_v1';
+const _kCartKey = 'tamarin_cart_v1';
 
 class CartProvider extends ChangeNotifier {
   final _uuid = const Uuid();

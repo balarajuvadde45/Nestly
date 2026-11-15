@@ -7,7 +7,7 @@ import '../models/vendor.dart';
 import '../services/api_client.dart';
 import '../services/api_mappers.dart';
 
-/// Catalog and search results from the Nestly API.
+/// Catalog and search results from the Tamarin API.
 class CatalogProvider extends ChangeNotifier {
   CatalogProvider(this._api);
 

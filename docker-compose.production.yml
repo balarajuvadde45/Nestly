@@ -1,4 +1,4 @@
-name: nestly-production
+name: tamarin-production
 services:
   api:
     image: ${API_IMAGE:?Set an immutable API image tag}

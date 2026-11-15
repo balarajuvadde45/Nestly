@@ -48,7 +48,7 @@ authRouter.post('/verify-otp', async (req, res, next) => {
     const user = await prisma.user.upsert({
       where: { phone },
       create: {
-        name: body.name || 'Nestly User', email: 'user' + body.phone + '@nestly.local',
+        name: body.name || 'Tamarin User', email: 'user' + body.phone + '@tamarin.local',
         phone, passwordHash: await hashPassword(randomBytes(32).toString('hex')),
         role: Role.CUSTOMER, authProvider: 'phone',
       },

@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: nestly-api
+    name: tamarin-api
     runtime: node
     rootDir: backend
     plan: starter

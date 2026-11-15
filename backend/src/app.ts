@@ -50,14 +50,16 @@ export function createApp(): Express {
     }),
   );
   app.use(compression());
-  app.use('/payments', paymentsRouter); // raw body, mounted before the JSON parser for webhook signatures
+  // Razorpay webhook: the HMAC signature is computed over the exact raw body,
+  // so this router parses ONLY the raw buffer (before express.json below).
+  app.use('/payments', express.raw({ type: '*/*', limit: '256kb' }), paymentsRouter);
   app.use(express.json({ limit: '2mb' }));
   app.use(pinoHttp({ logger }));
 
   // ---- Health probes ----
   // Liveness: the process is up (no external dependencies checked).
   app.get('/healthz', (_req: Request, res: Response) => {
-    res.json({ ok: true, service: 'nestly-api', time: new Date().toISOString() });
+    res.json({ ok: true, service: 'tamarin-api', time: new Date().toISOString() });
   });
   // Readiness: dependencies reachable — used by a load balancer before routing.
   app.get('/readyz', async (_req: Request, res: Response) => {
@@ -83,7 +85,7 @@ export function createApp(): Express {
     }
     res.status(db === 'up' ? 200 : 503).json({
       ok: db === 'up',
-      service: 'nestly-api',
+      service: 'tamarin-api',
       database: db,
       time: new Date().toISOString(),
     });
@@ -98,6 +100,8 @@ export function createApp(): Express {
     message: { error: 'Too many requests. Please try later.' },
     standardHeaders: true,
     legacyHeaders: false,
+    // A Redis blip must not turn every API request into a 500.
+    passOnStoreError: true,
     skip,
   });
   const authLimiter = rateLimit({
@@ -107,6 +111,7 @@ export function createApp(): Express {
     message: { error: 'Too many sign-in attempts. Please try later.' },
     standardHeaders: true,
     legacyHeaders: false,
+    passOnStoreError: true,
     skip,
   });
 

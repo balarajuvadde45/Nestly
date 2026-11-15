@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/responsive.dart';
+import '../../core/utils/store_links.dart';
 import '../../models/category_tree.dart';
 import '../../models/vendor.dart';
 import '../../providers/catalog_provider.dart';
@@ -230,7 +231,7 @@ class HubScreen extends StatelessWidget {
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [Color(0xFFF3E5F5), Color(0xFFE1BEE7)],
+                            colors: [AppColors.violet50, AppColors.violet200],
                           ),
                           borderRadius: BorderRadius.circular(16),
                         ),
@@ -244,7 +245,7 @@ class HubScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 6),
                             const Text(
-                              'List kurtis, sarees, kids wear, custom stitching and more. Reach customers nearby with Nestly.',
+                              'List kurtis, sarees, kids wear, custom stitching and more. Reach customers nearby with Tamarin.',
                               style: TextStyle(
                                 fontSize: 13,
                                 color: AppColors.textSecondary,
@@ -253,7 +254,7 @@ class HubScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 12),
                             ElevatedButton(
-                              onPressed: () => context.push('/sell'),
+                              onPressed: () => openPartnerAppStore(context),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.secondary,
                               ),

@@ -16,7 +16,7 @@ class RatingChip extends StatelessWidget {
 
   Color get _bg {
     if (rating >= 4.0) return AppColors.success;
-    if (rating >= 3.0) return const Color(0xFF558B2F);
+    if (rating >= 3.0) return AppColors.violet800;
     return AppColors.warning;
   }
 

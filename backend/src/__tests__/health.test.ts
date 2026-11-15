@@ -9,7 +9,7 @@ describe('health endpoints', () => {
     const res = await request(app).get('/healthz');
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
-    expect(res.body.service).toBe('nestly-api');
+    expect(res.body.service).toBe('tamarin-api');
   });
 
   it('unknown route returns 404 with an error body', async () => {

@@ -4,6 +4,9 @@ import 'package:provider/provider.dart';
 import '../core/constants/app_constants.dart';
 import '../core/theme/app_colors.dart';
 import '../core/utils/responsive.dart';
+import '../core/utils/store_links.dart';
+import '../providers/location_provider.dart';
+import '../widgets/location_picker.dart';
 import '../models/category_tree.dart';
 import '../providers/cart_provider.dart';
 
@@ -80,8 +83,49 @@ class MarketplaceHeader extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
+                // Delivery location — opens the picker sheet.
+                Flexible(
+                  child: InkWell(
+                    onTap: () => showDeliveryLocationPicker(context),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.location_on_rounded,
+                            color: AppColors.primary,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              context.watch<LocationProvider>().location.short,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                          const Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 18,
+                            color: AppColors.textSecondary,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
                 IconButton.filled(
-                  onPressed: () => context.push('/sell'),
+                  onPressed: () => showSellDialog(context),
                   style: IconButton.styleFrom(
                     backgroundColor: AppColors.secondary,
                     foregroundColor: Colors.white,
@@ -115,7 +159,7 @@ class MarketplaceHeader extends StatelessWidget {
                 top: BorderSide(color: AppColors.divider),
                 bottom: BorderSide(color: AppColors.divider),
               ),
-              color: Color(0xFFFAFAFA),
+              color: AppColors.violet50,
             ),
             child: Center(
               child: ConstrainedBox(
@@ -138,7 +182,7 @@ class MarketplaceHeader extends StatelessWidget {
                       ],
                       const Spacer(),
                       TextButton.icon(
-                        onPressed: () => context.push('/sell'),
+                        onPressed: () => showSellDialog(context),
                         icon: const Icon(Icons.storefront_outlined, size: 18),
                         label: const Text('Sell'),
                       ),
@@ -378,7 +422,7 @@ class HubShowcase extends StatelessWidget {
                   crossAxisCount: cols,
                   mainAxisSpacing: 12,
                   crossAxisSpacing: 12,
-                  childAspectRatio: wide ? 1.35 : 1.15,
+                  childAspectRatio: wide ? 1.35 : 1.0,
                 ),
                 itemBuilder: (context, i) {
                   final hub = CategoryTree.hubs[i];
@@ -430,7 +474,7 @@ class _HubCard extends StatelessWidget {
                 ),
                 child: Icon(hub.icon, size: 24),
               ),
-              const Spacer(),
+              const SizedBox(height: 12),
               Text(
                 hub.name,
                 style: const TextStyle(
@@ -451,6 +495,7 @@ class _HubCard extends StatelessWidget {
                   height: 1.3,
                 ),
               ),
+              const Spacer(),
               if (hub.id == 'hub_clothes' || hub.id == 'hub_wholesale') ...[
                 const SizedBox(height: 6),
                 Container(

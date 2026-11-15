@@ -130,7 +130,7 @@ applicationsRouter.post('/', optionalAuth, async (req, res, next) => {
 
     res.status(201).json({
       application: serializeApp(app),
-      message: 'Application saved. Admin can review it in Nestly Admin.',
+      message: 'Application saved. Admin can review it in Tamarin Admin.',
     });
   } catch (e) {
     next(e);

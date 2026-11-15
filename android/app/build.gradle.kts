@@ -19,8 +19,8 @@ if (releaseRequested) {
     require(rootProject.file(signingProperties.getProperty("storeFile")).exists()) { "Upload keystore not found." }
 }
 android {
-    // Play application id is in.nestly.app. Namespace avoids Kotlin reserved word `in`.
-    namespace = "app.nestly.android"
+    // Namespace avoids Kotlin reserved word `in`.
+    namespace = "app.tamarin.android"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -30,7 +30,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "in.nestly.app"
+        applicationId = "in.tamarin.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

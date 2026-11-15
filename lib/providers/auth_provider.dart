@@ -8,11 +8,11 @@ import '../services/api_mappers.dart';
 import '../services/socket_service.dart';
 
 /// App surface: buyer shop vs seller dashboard (same login, different UI + logs).
-enum NestlyMode { buyer, seller }
+enum TamarinMode { buyer, seller }
 
-const _kTokenKey = 'nestly_auth_token';
+const _kTokenKey = 'tamarin_auth_token';
 
-/// Auth against Nestly API — email, phone OTP, Google.
+/// Auth against Tamarin API — email, phone OTP, Google.
 class AuthProvider extends ChangeNotifier {
   AuthProvider(this._api, this._socket);
 
@@ -27,14 +27,14 @@ class AuthProvider extends ChangeNotifier {
   bool _backendOnline = false;
   bool _restoring = true;
   String? _error;
-  NestlyMode _mode = NestlyMode.buyer;
+  TamarinMode _mode = TamarinMode.buyer;
 
   AppUser? get user => _user;
   String? get token => _token;
   String? get vendorId => _vendorId;
-  NestlyMode get mode => _mode;
-  bool get isBuyerMode => _mode == NestlyMode.buyer;
-  bool get isSellerMode => _mode == NestlyMode.seller;
+  TamarinMode get mode => _mode;
+  bool get isBuyerMode => _mode == TamarinMode.buyer;
+  bool get isSellerMode => _mode == TamarinMode.seller;
   bool get isLoggedIn => _user != null && _token != null && _token!.isNotEmpty;
   bool get isSeller => _user?.isSeller == true || _vendorId != null;
   bool get hasBusiness => _vendorId != null;
@@ -44,13 +44,13 @@ class AuthProvider extends ChangeNotifier {
   String? get error => _error;
 
   void enterBuyerMode() {
-    _mode = NestlyMode.buyer;
+    _mode = TamarinMode.buyer;
     notifyListeners();
     _logBuyer('ENTER_BUYER_MODE', 'Switched to buyer shop');
   }
 
   void enterSellerMode() {
-    _mode = NestlyMode.seller;
+    _mode = TamarinMode.seller;
     notifyListeners();
     _logSeller('ENTER_SELLER_MODE', 'Switched to seller dashboard');
   }
@@ -136,7 +136,7 @@ class AuthProvider extends ChangeNotifier {
       }
       final business = res['business'] as Map<String, dynamic>?;
       _vendorId = business?['id'] as String?;
-      _mode = NestlyMode.seller;
+      _mode = TamarinMode.seller;
       await _refreshMe();
       return true;
     } on ApiException catch (e) {
@@ -169,7 +169,7 @@ class AuthProvider extends ChangeNotifier {
       if (res['business'] is Map) {
         _vendorId = (res['business'] as Map)['id'] as String?;
       }
-      _mode = NestlyMode.seller;
+      _mode = TamarinMode.seller;
       notifyListeners();
       return true;
     } catch (_) {
@@ -379,7 +379,7 @@ class AuthProvider extends ChangeNotifier {
     _user = null;
     _token = null;
     _vendorId = null;
-    _mode = NestlyMode.buyer;
+    _mode = TamarinMode.buyer;
     _api.setToken(null);
     _socket.disconnect();
     _socket.setToken(null);

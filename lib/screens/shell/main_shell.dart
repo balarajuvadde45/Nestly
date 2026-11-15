@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/responsive.dart';
+import '../../core/utils/store_links.dart';
 import '../../providers/cart_provider.dart';
 import '../../widgets/cart_fab.dart';
 import '../../widgets/marketplace_header.dart';
@@ -82,35 +82,6 @@ class MainShell extends StatelessWidget {
                       color: AppColors.textHint,
                       fontSize: 12,
                     ),
-                    leading: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      child: Column(
-                        children: [
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.home_work_rounded,
-                              color: Colors.white,
-                              size: 26,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            AppConstants.appName,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 11,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                     destinations: const [
                       NavigationRailDestination(
                         icon: Icon(Icons.home_outlined),
@@ -133,43 +104,10 @@ class MainShell extends StatelessWidget {
                         label: Text('Profile'),
                       ),
                     ],
-                    trailing: Expanded(
-                      child: Align(
-                        alignment: Alignment.bottomCenter,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton.filled(
-                                onPressed: () => context.push('/sell'),
-                                style: IconButton.styleFrom(
-                                  backgroundColor: AppColors.secondary,
-                                  foregroundColor: Colors.white,
-                                ),
-                                icon: const Icon(Icons.storefront_rounded),
-                                tooltip: 'Become a seller',
-                              ),
-                              const SizedBox(height: 8),
-                              IconButton.filled(
-                                onPressed: () => context.push('/cart'),
-                                style: IconButton.styleFrom(
-                                  backgroundColor: AppColors.primary,
-                                  foregroundColor: Colors.white,
-                                ),
-                                icon: Badge(
-                                  isLabelVisible: cart.itemCount > 0,
-                                  label: Text('${cart.itemCount}'),
-                                  child: const Icon(
-                                    Icons.shopping_bag_outlined,
-                                  ),
-                                ),
-                                tooltip: 'Cart',
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                    trailing: IconButton(
+                      onPressed: () => showSellDialog(context),
+                      tooltip: 'Sell on Tamarin',
+                      icon: const Icon(Icons.storefront_rounded),
                     ),
                   ),
                   const VerticalDivider(width: 1),
@@ -209,7 +147,7 @@ class MainShell extends StatelessWidget {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/sell'),
+        onPressed: () => showSellDialog(context),
         backgroundColor: AppColors.secondary,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.storefront_rounded),

@@ -47,7 +47,7 @@ class HubSubCategory {
   });
 }
 
-/// Canonical navigation tree for Nestly.
+/// Canonical navigation tree for Tamarin.
 class CategoryTree {
   CategoryTree._();
 
@@ -59,7 +59,7 @@ class CategoryTree {
       description:
           'Home kitchens, tiffin, cloud kitchens & homemade meals from local cooks',
       icon: Icons.restaurant_menu_rounded,
-      color: Color(0xFFFFE0B2),
+      color: Color(0xFFCFC8FB),
       imageUrl:
           'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400',
       children: [
@@ -113,7 +113,7 @@ class CategoryTree {
       shortLabel: 'Pickles',
       description: 'Grandma-style pickles, podis, spices & homemade masalas',
       icon: Icons.spa_rounded,
-      color: Color(0xFFC8E6C9),
+      color: Color(0xFFDBD6F8),
       imageUrl:
           'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=400',
       children: [
@@ -147,7 +147,7 @@ class CategoryTree {
       description:
           'Local boutiques, ethnic wear, handloom & stitched fashion from local makers',
       icon: Icons.checkroom_rounded,
-      color: Color(0xFFE1BEE7),
+      color: Color(0xFFB0A5F8),
       imageUrl:
           'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=400',
       children: [
@@ -202,7 +202,7 @@ class CategoryTree {
       description:
           'FMCG distributor deals, case packs and GST-ready supplies for local businesses',
       icon: Icons.local_grocery_store_rounded,
-      color: Color(0xFFD7CCC8),
+      color: Color(0xFFE7E3FD),
       imageUrl:
           'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=400',
       children: [

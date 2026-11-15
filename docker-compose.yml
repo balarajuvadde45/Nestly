@@ -1,19 +1,19 @@
-# Local development backing services for Nestly.
+# Local development backing services for Tamarin.
 #
 #   docker compose up -d                      # Postgres + Redis (recommended for local dev)
 #   docker compose --profile full up --build  # also build & run the API in a container
 #
 # The API is normally run with hot reload instead:  cd backend && npm run dev
-name: nestly
+name: tamarin
 
 services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: nestly
-      POSTGRES_PASSWORD: nestly
-      POSTGRES_DB: nestly
+      POSTGRES_USER: tamarin
+      POSTGRES_PASSWORD: tamarin
+      POSTGRES_DB: tamarin
     ports:
       # host 5433 -> container 5432, so this never clashes with a Postgres
       # you may already run locally on 5432 (e.g. your current UAT setup).
@@ -21,7 +21,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U nestly -d nestly"]
+      test: ["CMD-SHELL", "pg_isready -U tamarin -d tamarin"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -54,7 +54,7 @@ services:
     environment:
       NODE_ENV: development
       PORT: "4000"
-      DATABASE_URL: postgresql://nestly:nestly@postgres:5432/nestly?schema=public
+      DATABASE_URL: postgresql://tamarin:tamarin@postgres:5432/tamarin?schema=public
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in your shell}
       CORS_ORIGIN: "http://localhost:8080"
